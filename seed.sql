@@ -1,4 +1,4 @@
-INSERT OR IGNORE INTO problems (name, slug, description, starter_code) VALUES (
+INSERT OR IGNORE INTO problems (name, slug, description, starter_code, difficulty) VALUES (
   'Matrix Multiplication',
   'matrix-multiplication',
   'Write a function that takes two 2D tensors (matrices) as input and returns their matrix product.
@@ -20,5 +20,6 @@ Constraints:
   'import torch
 
 def matrix_multiply(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
-    pass'
+    pass',
+  'Easy'
 );

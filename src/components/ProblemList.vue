@@ -7,13 +7,38 @@ interface Problem {
   slug: string;
   description: string;
   starter_code: string;
+  difficulty: "Easy" | "Medium" | "Hard";
 }
 
 const problems = ref<Problem[]>([]);
+const starredIds = ref<Set<number>>(new Set());
+
+async function toggleStar(problemId: number) {
+  const isStarred = starredIds.value.has(problemId);
+  const method = isStarred ? "DELETE" : "POST";
+
+  await fetch("/api/stars", {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ problem_id: problemId, user_id: "default-user" }),
+  });
+
+  if (isStarred) {
+    starredIds.value.delete(problemId);
+  } else {
+    starredIds.value.add(problemId);
+  }
+  starredIds.value = new Set(starredIds.value);
+}
 
 onMounted(async () => {
-  const res = await fetch("/api/problems");
-  problems.value = await res.json();
+  const [problemsRes, starsRes] = await Promise.all([
+    fetch("/api/problems"),
+    fetch("/api/stars?user_id=default-user"),
+  ]);
+  problems.value = await problemsRes.json();
+  const ids: number[] = await starsRes.json();
+  starredIds.value = new Set(ids);
 });
 </script>
 
@@ -24,7 +49,12 @@ onMounted(async () => {
         <a :href="`/problems/${problem.slug}`" class="problem-link">
           {{ problem.id }}. {{ problem.name }}
         </a>
-        <button class="star-btn" @click.prevent>&#9734;</button>
+        <span class="difficulty" :class="problem.difficulty.toLowerCase()">{{ problem.difficulty }}</span>
+        <button
+          class="star-btn"
+          :class="{ starred: starredIds.has(problem.id) }"
+          @click.prevent="toggleStar(problem.id)"
+        >{{ starredIds.has(problem.id) ? '&#9733;' : '&#9734;' }}</button>
       </div>
     </div>
   </div>
@@ -49,7 +79,8 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  font-family: sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
 }
 
 .problem-link {
@@ -58,12 +89,28 @@ onMounted(async () => {
   flex: 1;
 }
 
+.difficulty {
+  margin-right: 8px;
+}
+
+.difficulty.easy {
+  color: #00b8a3;
+}
+
+.difficulty.medium {
+  color: #ffc01e;
+}
+
+.difficulty.hard {
+  color: #ff375f;
+}
+
 .star-btn {
   opacity: 0;
   background: none;
   border: none;
   color: #888;
-  font-size: 18px;
+  font-size: 15px;
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 6px;
@@ -77,5 +124,10 @@ onMounted(async () => {
 .star-btn:hover {
   background-color: #333;
   color: #f5f5f5;
+}
+
+.star-btn.starred {
+  opacity: 1;
+  color: #f5c518;
 }
 </style>
