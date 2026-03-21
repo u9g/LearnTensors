@@ -68,11 +68,48 @@ onMounted(() => {
         acceptSuggestionOnEnter: "off",
       });
 
-      // Workaround: Monaco CDN/AMD load may not register Enter as a type command.
+      // Workaround: Monaco CDN/AMD load may not register certain default keybindings.
       // Explicitly bind Enter to insert a newline.
       editor.addCommand(monaco.KeyCode.Enter, () => {
         editor.trigger("keyboard", "type", { text: "\n" });
       });
+
+      // Workaround: macOS + Chrome produces broken keydown events for Option+Arrow
+      // (empty key/code/keyCode) due to dead key composition handling. The keyup
+      // event correctly reports the arrow key. We count broken keydowns and fire
+      // the appropriate command on keyup.
+      const editorDom = editor.getDomNode();
+      const textarea = editorDom?.querySelector("textarea.inputarea");
+      if (textarea) {
+        let brokenAltKeydowns = 0;
+        let shiftHeld = false;
+
+        textarea.addEventListener("keydown", (e: KeyboardEvent) => {
+          if (e.altKey && e.key === "" && e.code === "" && e.keyCode === 0) {
+            brokenAltKeydowns++;
+            shiftHeld = e.shiftKey;
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }, true);
+
+        textarea.addEventListener("keyup", (e: KeyboardEvent) => {
+          if (brokenAltKeydowns > 0 && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+            const isLeft = e.key === "ArrowLeft";
+            const command = shiftHeld
+              ? (isLeft ? "cursorWordLeftSelect" : "cursorWordRightSelect")
+              : (isLeft ? "cursorWordLeft" : "cursorWordRight");
+            for (let i = 0; i < brokenAltKeydowns; i++) {
+              editor.trigger("keyboard", command, {});
+            }
+            brokenAltKeydowns = 0;
+            e.preventDefault();
+            e.stopPropagation();
+          } else {
+            brokenAltKeydowns = 0;
+          }
+        }, true);
+      }
 
       // Initialize ty type checker (WASM) for diagnostics, hover, completions, etc.
       try {
