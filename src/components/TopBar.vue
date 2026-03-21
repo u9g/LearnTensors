@@ -7,9 +7,8 @@
 <style>
 @font-face {
   font-family: 'Skarpa';
-  src: url('../assets/fonts/Skarpa-Regular.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
+  src: url('/fonts/Skarpa-Regular.ttf') format('truetype');
+  font-display: block;
 }
 
 .top-bar {

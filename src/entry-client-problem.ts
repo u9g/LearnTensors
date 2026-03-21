@@ -1,4 +1,4 @@
-import { createApp } from "vue";
+import { createSSRApp } from "vue";
 import ProblemPage from "./components/ProblemPage.vue";
 
 declare global {
@@ -7,4 +7,4 @@ declare global {
   }
 }
 
-createApp(ProblemPage, { problem: window.__PROBLEM__ }).mount("#app");
+createSSRApp(ProblemPage, { problem: window.__PROBLEM__ }).mount("#app");

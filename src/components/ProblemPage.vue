@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from "vue";
+import { marked } from "marked";
 import TopBar from "./TopBar.vue";
 
 interface TestCase {
@@ -25,13 +26,11 @@ const difficultyClass = computed(
 );
 
 const renderedDescription = computed(() => {
-  if (typeof window !== "undefined" && (window as any).marked) {
-    return (window as any).marked.parse(props.problem.description);
-  }
-  return props.problem.description;
+  return marked.parse(props.problem.description) as string;
 });
 
 const editorEl = ref<HTMLElement | null>(null);
+const editorReady = ref(false);
 
 onMounted(() => {
   const req = (window as any).require;
@@ -50,6 +49,7 @@ onMounted(() => {
       colors: { "editor.background": "#1e1e1e" },
     });
     if (editorEl.value) {
+      editorReady.value = true;
       monaco.editor.create(editorEl.value, {
         value: props.problem.starter_code,
         language: "python",
@@ -102,7 +102,9 @@ onMounted(() => {
       <div class="editor-tabs">
         <div class="editor-tab">solution.py</div>
       </div>
-      <div class="editor-container" ref="editorEl"></div>
+      <div class="editor-container" ref="editorEl">
+        <pre v-if="!editorReady" class="editor-placeholder"><code>{{ problem.starter_code }}</code></pre>
+      </div>
     </div>
   </div>
 </template>
@@ -115,7 +117,9 @@ body { background: #1e1e1e; color: #f5f5f5; font-family: -apple-system, BlinkMac
 .right-panel { flex: 1; display: flex; flex-direction: column; background: #1e1e1e; min-width: 0; }
 .editor-tabs { display: flex; align-items: center; height: 36px; background: #252526; border-bottom: 1px solid #333; padding: 0 8px; flex-shrink: 0; }
 .editor-tab { font-size: 13px; color: #ccc; padding: 6px 12px; background: #1e1e1e; border-top: 1px solid #007acc; border-radius: 0; }
-.editor-container { flex: 1; min-height: 0; }
+.editor-container { flex: 1; min-height: 0; position: relative; }
+.editor-placeholder { margin: 0; padding: 12px 0 0 64px; font-family: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace; font-size: 14px; color: #d4d4d4; background: #1e1e1e; height: 100%; overflow: hidden; white-space: pre; }
+.editor-placeholder code { font: inherit; color: inherit; }
 .problem-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
 .problem-title { font-size: 20px; font-weight: 600; }
 .difficulty-easy { color: #00b8a3; }

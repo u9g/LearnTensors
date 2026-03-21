@@ -23,4 +23,19 @@ export default defineConfig({
       },
     },
   },
+  ssr: {
+    target: 'webworker',
+    noExternal: true,
+  },
+  environments: {
+    ssr: {
+      build: {
+        rollupOptions: {
+          output: {
+            entryFileNames: '[name].js',
+          },
+        },
+      },
+    },
+  },
 })
