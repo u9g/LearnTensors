@@ -19,22 +19,14 @@ onMounted(async () => {
 
 <template>
   <div class="problem-list">
-    <table class="problem-table">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Name</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="problem in problems" :key="problem.id">
-          <td>{{ problem.id }}</td>
-          <td>
-            <a :href="`/problems/${problem.slug}`">{{ problem.name }}</a>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="problem-items">
+      <div v-for="problem in problems" :key="problem.id" class="problem-row">
+        <a :href="`/problems/${problem.slug}`" class="problem-link">
+          {{ problem.id }}. {{ problem.name }}
+        </a>
+        <button class="star-btn" @click.prevent>&#9734;</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -42,41 +34,48 @@ onMounted(async () => {
 .problem-list {
   background-color: #1a1a1a;
   min-height: calc(100vh - 50px);
-  padding: 24px;
+  padding: 0;
 }
 
-.problem-table {
+.problem-items {
   width: 100%;
   max-width: 800px;
   margin: 0 auto;
-  border-collapse: collapse;
-  color: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+}
+
+.problem-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
   font-family: sans-serif;
 }
 
-.problem-table th {
-  text-align: left;
-  padding: 12px 16px;
-  border-bottom: 1px solid #333;
-  color: #888;
-  font-size: 14px;
-}
-
-.problem-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #2a2a2a;
-}
-
-.problem-table a {
+.problem-link {
   color: #f5f5f5;
   text-decoration: none;
+  flex: 1;
 }
 
-.problem-table a:hover {
-  color: #7cb3ff;
+.star-btn {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
 }
 
-.problem-table tr:hover {
-  background-color: #222;
+.problem-row:hover .star-btn {
+  opacity: 1;
+}
+
+.star-btn:hover {
+  background-color: #333;
+  color: #f5f5f5;
 }
 </style>
