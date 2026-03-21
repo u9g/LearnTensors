@@ -65,6 +65,13 @@ onMounted(() => {
         cursorBlinking: "smooth",
         smoothScrolling: true,
         "semanticHighlighting.enabled": true,
+        acceptSuggestionOnEnter: "off",
+      });
+
+      // Workaround: Monaco CDN/AMD load may not register Enter as a type command.
+      // Explicitly bind Enter to insert a newline.
+      editor.addCommand(monaco.KeyCode.Enter, () => {
+        editor.trigger("keyboard", "type", { text: "\n" });
       });
 
       // Initialize ty type checker (WASM) for diagnostics, hover, completions, etc.
@@ -122,8 +129,9 @@ onUnmounted(() => {
       <div class="editor-tabs">
         <div class="editor-tab">solution.py</div>
       </div>
-      <div class="editor-container" ref="editorEl">
+      <div class="editor-container">
         <pre v-if="!editorReady" class="editor-placeholder"><code>{{ problem.starter_code }}</code></pre>
+        <div ref="editorEl" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;"></div>
       </div>
     </div>
   </div>
