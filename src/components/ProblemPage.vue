@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import { marked } from "marked";
 import TopBar from "./TopBar.vue";
 
@@ -31,6 +31,7 @@ const renderedDescription = computed(() => {
 
 const editorEl = ref<HTMLElement | null>(null);
 const editorReady = ref(false);
+let tyCleanup: (() => void) | null = null;
 
 onMounted(() => {
   const req = (window as any).require;
@@ -41,7 +42,7 @@ onMounted(() => {
       vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs",
     },
   });
-  req(["vs/editor/editor.main"], (monaco: any) => {
+  req(["vs/editor/editor.main"], async (monaco: any) => {
     monaco.editor.defineTheme("learntensors", {
       base: "vs-dark",
       inherit: true,
@@ -50,7 +51,7 @@ onMounted(() => {
     });
     if (editorEl.value) {
       editorReady.value = true;
-      monaco.editor.create(editorEl.value, {
+      const editor = monaco.editor.create(editorEl.value, {
         value: props.problem.starter_code,
         language: "python",
         theme: "learntensors",
@@ -63,9 +64,28 @@ onMounted(() => {
         renderLineHighlight: "line",
         cursorBlinking: "smooth",
         smoothScrolling: true,
+        "semanticHighlighting.enabled": true,
       });
+
+      // Initialize ty type checker (WASM) for diagnostics, hover, completions, etc.
+      try {
+        const { initTyChecker } = await import(
+          "../composables/useTyChecker"
+        );
+        tyCleanup = await initTyChecker(
+          monaco,
+          editor,
+          props.problem.starter_code,
+        );
+      } catch (e) {
+        console.warn("ty type checker failed to load:", e);
+      }
     }
   });
+});
+
+onUnmounted(() => {
+  tyCleanup?.();
 });
 </script>
 

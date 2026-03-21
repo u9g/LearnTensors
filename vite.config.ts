@@ -5,6 +5,9 @@ import { resolve } from 'path'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  optimizeDeps: {
+    exclude: ['ty_wasm'],
+  },
   build: {
     rollupOptions: {
       input: {

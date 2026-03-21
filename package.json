@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "build:ty-wasm": "bash scripts/build-ty-wasm.sh",
     "dev": "rm -rf .wrangler && vite build --ssr src/entry-server.ts --outDir dist/server && echo y | wrangler d1 migrations apply learntensors-db --local && wrangler d1 execute learntensors-db --local --file=seed.sql && stmux -- [ [ \"vite --port 5173\" .. \"wrangler pages dev --proxy=5173 --compatibility-date=2024-01-01\" ] : \"sh dev-url.sh\" ]",
-    "build": "vue-tsc -b && vite build && vite build --ssr src/entry-server.ts --outDir dist/server",
+    "build": "npm run build:ty-wasm && vue-tsc -b && vite build && vite build --ssr src/entry-server.ts --outDir dist/server",
     "preview": "vite preview"
   },
   "dependencies": {
