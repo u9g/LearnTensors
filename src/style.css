@@ -1,10 +1,3 @@
-@font-face {
-  font-family: 'Skarpa';
-  src: url('./assets/fonts/Skarpa-Regular.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
 body {
   margin: 0;
   padding: 0;

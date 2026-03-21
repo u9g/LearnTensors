@@ -46,7 +46,7 @@ onMounted(async () => {
   <div class="problem-list">
     <div class="problem-items">
       <div v-for="problem in problems" :key="problem.id" class="problem-row">
-        <a :href="`/problems/${problem.slug}`" class="problem-link">
+        <a :href="`/problem/${problem.slug}`" class="problem-link">
           {{ problem.id }}. {{ problem.name }}
         </a>
         <span class="difficulty" :class="problem.difficulty.toLowerCase()">{{ problem.difficulty }}</span>

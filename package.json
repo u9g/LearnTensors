@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "rm -rf .wrangler && wrangler d1 migrations apply learntensors-db --local && wrangler d1 execute learntensors-db --local --file=seed.sql && stmux -- [ [ \"vite --port 5173\" .. \"wrangler pages dev --proxy=5173 --compatibility-date=2024-01-01\" ] : \"sh dev-url.sh\" ]",
+    "dev": "rm -rf .wrangler && wrangler d1 migrations apply learntensors-db --local --yes && wrangler d1 execute learntensors-db --local --file=seed.sql && stmux -- [ [ \"vite --port 5173\" .. \"wrangler pages dev --proxy=5173 --compatibility-date=2024-01-01\" ] : \"sh dev-url.sh\" ]",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview"
   },
