@@ -9,6 +9,18 @@ import type {
   SemanticToken as SemanticTokenType,
 } from "../ty_wasm/ty_wasm";
 
+import torchInit from "../stubs/torch/__init__.pyi?raw";
+import torchLinalg from "../stubs/torch/linalg.pyi?raw";
+import torchNnInit from "../stubs/torch/nn/__init__.pyi?raw";
+import torchNnFunctional from "../stubs/torch/nn/functional.pyi?raw";
+
+const STUBS: [string, string][] = [
+  ["torch/__init__.pyi", torchInit],
+  ["torch/linalg/__init__.pyi", torchLinalg],
+  ["torch/nn/__init__.pyi", torchNnInit],
+  ["torch/nn/functional/__init__.pyi", torchNnFunctional],
+];
+
 let tyPromise: Promise<typeof import("../ty_wasm/ty_wasm")> | null = null;
 
 async function loadTy() {
@@ -35,6 +47,11 @@ export async function initTyChecker(
     ty.PositionEncoding.Utf16,
     {},
   );
+  // Load torch type stubs into the virtual filesystem
+  for (const [path, content] of STUBS) {
+    workspace.openFile(path, content);
+  }
+
   const handle: FileHandle = workspace.openFile("solution.py", initialCode);
   const model = editor.getModel();
   if (!model) return () => {};

@@ -1,5 +1,6 @@
 import { createSSRApp } from "vue";
 import ProblemPage from "./components/ProblemPage.vue";
+import "./style.css";
 
 declare global {
   interface Window {
