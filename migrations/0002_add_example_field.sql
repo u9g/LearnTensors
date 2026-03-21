@@ -1,0 +1,1 @@
+ALTER TABLE problems ADD COLUMN example TEXT NOT NULL DEFAULT '';

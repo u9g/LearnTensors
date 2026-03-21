@@ -1,0 +1,36 @@
+@font-face {
+  font-family: 'Skarpa';
+  src: url('./assets/fonts/Skarpa-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Dark mode scrollbar */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #2c2c2c;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #6b6b6b;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+
+/* Firefox */
+* {
+  scrollbar-color: #6b6b6b #2c2c2c;
+  scrollbar-width: auto;
+}

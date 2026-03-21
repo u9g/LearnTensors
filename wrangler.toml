@@ -1,0 +1,10 @@
+name = "learntensors"
+compatibility_date = "2024-01-01"
+
+# After running: npx wrangler d1 create learntensors-db
+# paste the database_id below
+[[d1_databases]]
+binding = "DB"
+database_name = "learntensors-db"
+database_id = "55da7227-dc20-4ad7-87e7-887a75d79ae2"
+migrations_dir = "migrations"
