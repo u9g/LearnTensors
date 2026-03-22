@@ -4,6 +4,17 @@ import { marked } from "marked";
 import TopBar from "./TopBar.vue";
 import { darkModernTheme, lightModernTheme, enhancePythonTokenizer } from "../composables/darkModernTheme";
 
+// Kick off heavy imports immediately (don't wait for onMounted)
+const monacoPromise = typeof window !== "undefined"
+  ? import("monaco-editor")
+  : null;
+const workerPromise = typeof window !== "undefined"
+  ? import("monaco-editor/esm/vs/editor/editor.worker?worker")
+  : null;
+const tyPromise = typeof window !== "undefined"
+  ? import("../composables/useTyChecker")
+  : null;
+
 interface TestCase {
   id: number;
   input: string;
@@ -34,6 +45,67 @@ const editorEl = ref<HTMLElement | null>(null);
 const leftPanelEl = ref<HTMLElement | null>(null);
 const editorReady = ref(false);
 let tyCleanup: (() => void) | null = null;
+
+const activeTab = ref("solution");
+let editorInstance: any = null;
+let solutionCode = props.problem.starter_code;
+
+const tabs = computed(() => {
+  const t = [{ id: "solution", label: "solution.py" }];
+  props.problem.test_cases.forEach((_, i) => {
+    t.push({ id: `test-${i + 1}`, label: `test_${i + 1}.py` });
+  });
+  return t;
+});
+
+function testFileContent(tc: TestCase, i: number): string {
+  const fnMatch = props.problem.starter_code.match(/def\s+(\w+)/);
+  const fnName = fnMatch ? fnMatch[1] : "solve";
+  const lines = [
+    "import torch",
+    "from solution import " + fnName,
+    "",
+    "# Test " + (i + 1),
+    tc.input,
+    `result = ${fnName}(${extractArgs(tc.input)})`,
+    `expected = ${tc.expected_output}`,
+    "",
+    "assert torch.equal(result, expected), f\"Expected {expected}, got {result}\"",
+    "print(\"Test " + (i + 1) + " passed!\")",
+  ];
+  return lines.join("\n");
+}
+
+function extractArgs(input: string): string {
+  const assignments = input.split("\n").filter((l) => l.match(/^\w+\s*=/));
+  return assignments.map((l) => l.split("=")[0].trim()).join(", ");
+}
+
+function forceTokenizeAll(editor: import("monaco-editor").editor.IStandaloneCodeEditor) {
+  const model = editor.getModel() as any;
+  if (model?.tokenization?.forceTokenization) {
+    model.tokenization.forceTokenization(model.getLineCount());
+  }
+}
+
+function switchTab(tabId: string) {
+  if (!editorInstance || activeTab.value === tabId) return;
+  // Save solution code when leaving solution tab
+  if (activeTab.value === "solution") {
+    solutionCode = editorInstance.getValue();
+  }
+  activeTab.value = tabId;
+  if (tabId === "solution") {
+    editorInstance.setValue(solutionCode);
+    editorInstance.updateOptions({ readOnly: false });
+  } else {
+    const idx = parseInt(tabId.split("-")[1]) - 1;
+    const tc = props.problem.test_cases[idx];
+    editorInstance.setValue(testFileContent(tc, idx));
+    editorInstance.updateOptions({ readOnly: true });
+  }
+  forceTokenizeAll(editorInstance);
+}
 
 const isDark = ref(localStorage.getItem("editor-theme") !== "light");
 const themeToggleEl = ref<HTMLElement | null>(null);
@@ -100,9 +172,10 @@ function toggleTheme() {
 }
 
 onMounted(async () => {
-  const monaco = await import("monaco-editor");
+  // Await pre-started imports (fired at module scope, not here)
+  const [monaco, editorWorker] = await Promise.all([monacoPromise!, workerPromise!]);
+
   monacoRef = monaco;
-  const editorWorker = await import("monaco-editor/esm/vs/editor/editor.worker?worker");
   self.MonacoEnvironment = {
     getWorker: () => new editorWorker.default(),
   };
@@ -113,12 +186,16 @@ onMounted(async () => {
   if (!editorEl.value) return;
 
   editorReady.value = true;
-  const editor = monaco.editor.create(editorEl.value, {
+  const editor = editorInstance = monaco.editor.create(editorEl.value, {
     value: props.problem.starter_code,
     language: "python",
     theme: isDark.value ? "learntensors-dark" : "learntensors-light",
     fontSize: 14,
     minimap: { enabled: false },
+    overviewRulerBorder: false,
+    overviewRulerLanes: 0,
+    hideCursorInOverviewRuler: true,
+    scrollbar: { useShadows: false },
     scrollBeyondLastLine: false,
     padding: { top: 12 },
     automaticLayout: true,
@@ -129,6 +206,7 @@ onMounted(async () => {
     "semanticHighlighting.enabled": true,
     acceptSuggestionOnEnter: "off",
   });
+  forceTokenizeAll(editor);
 
   // Workaround for vscode's built-in browser (BrowserView) which intercepts
   // Enter and Option+Arrow keydown events before they reach web content.
@@ -174,17 +252,19 @@ onMounted(async () => {
     }, true);
   }
 
-  // Initialize ty type checker (WASM) for diagnostics, hover, completions, etc.
-  try {
-    const { initTyChecker } = await import("../composables/useTyChecker");
-    tyCleanup = await initTyChecker(
-      monaco,
-      editor,
-      props.problem.starter_code,
-    );
-  } catch (e) {
-    console.warn("ty type checker failed to load:", e);
-  }
+  // Initialize ty type checker — fire-and-forget (diagnostics/hover/completions, not visual)
+  void (async () => {
+    try {
+      const tyModule = await tyPromise!;
+      tyCleanup = await tyModule.initTyChecker(
+        monaco,
+        editor,
+        props.problem.starter_code,
+      );
+    } catch (e) {
+      console.warn("ty type checker failed to load:", e);
+    }
+  })();
 
   // Colorize all code blocks in the left panel (description + test cases) using Monaco
   if (leftPanelEl.value) {
@@ -232,7 +312,13 @@ onUnmounted(() => {
     </div>
     <div class="right-panel">
       <div class="editor-tabs">
-        <div class="editor-tab">solution.py</div>
+        <div
+          v-for="tab in tabs"
+          :key="tab.id"
+          class="editor-tab"
+          :class="{ active: activeTab === tab.id }"
+          @click="switchTab(tab.id)"
+        >{{ tab.label }}</div>
       </div>
       <div class="editor-container">
         <pre
@@ -311,11 +397,21 @@ body {
 }
 .editor-tab {
   font-size: 13px;
-  color: var(--fg2, #ccc);
+  color: #888;
   padding: 6px 12px;
+  background: var(--bg3, #252526);
+  border-top: 1px solid transparent;
+  border-radius: 0;
+  cursor: pointer;
+  user-select: none;
+}
+.editor-tab:hover {
+  color: var(--fg2, #ccc);
+}
+.editor-tab.active {
+  color: var(--fg2, #ccc);
   background: var(--bg, #1e1e1e);
   border-top: 1px solid #007acc;
-  border-radius: 0;
 }
 .theme-toggle {
   position: absolute;
@@ -354,6 +450,7 @@ body {
 .editor-container {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
   position: relative;
 }
 .editor-placeholder {
@@ -370,6 +467,14 @@ body {
 .editor-placeholder code {
   font: inherit;
   color: inherit;
+}
+.editor-container .monaco-editor,
+.editor-container .overflow-guard {
+  outline: none !important;
+  border: none !important;
+}
+.editor-container .margin-view-overlays {
+  border: none !important;
 }
 .problem-header {
   display: flex;
