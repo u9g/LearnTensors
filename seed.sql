@@ -33,7 +33,6 @@ INSERT OR IGNORE INTO test_cases (id, problem_id, input, expected_output) VALUES
 (1, 1, 'import torch
 from solution import matrix_multiply
 
-# Test 1
 a = torch.tensor([[1, 2], [3, 4]])
 b = torch.tensor([[5, 6], [7, 8]])
 result = matrix_multiply(a, b)
@@ -46,7 +45,6 @@ print("Test 1 passed!")', 'tensor([[19, 22],
 (2, 1, 'import torch
 from solution import matrix_multiply
 
-# Test 2
 a = torch.tensor([[1, 0], [0, 1]])
 b = torch.tensor([[7, 8], [9, 10]])
 result = matrix_multiply(a, b)
@@ -59,7 +57,6 @@ print("Test 2 passed!")', 'tensor([[ 7,  8],
 (3, 1, 'import torch
 from solution import matrix_multiply
 
-# Test 3
 a = torch.tensor([[2, 3, 4]])
 b = torch.tensor([[1], [2], [3]])
 result = matrix_multiply(a, b)
@@ -106,7 +103,6 @@ INSERT OR IGNORE INTO test_cases (id, problem_id, input, expected_output) VALUES
 (4, 2, 'import torch
 from solution import linear
 
-# Test 1
 x = torch.tensor([[1.0, 2.0]])
 weight = torch.tensor([[0.5, -1.0], [1.5, 0.5]])
 bias = torch.tensor([0.1, -0.2])
@@ -118,7 +114,6 @@ print("Test 1 passed!")', 'tensor([[-1.4000,  2.3000]])'),
 (5, 2, 'import torch
 from solution import linear
 
-# Test 2
 x = torch.tensor([[1.0, 0.0], [0.0, 1.0]])
 weight = torch.tensor([[3.0, 4.0], [5.0, 6.0]])
 bias = torch.tensor([0.0, 0.0])
@@ -132,7 +127,6 @@ print("Test 2 passed!")', 'tensor([[3., 5.],
 (6, 2, 'import torch
 from solution import linear
 
-# Test 3
 x = torch.tensor([[1.0, 2.0, 3.0]])
 weight = torch.tensor([[1.0, 1.0, 1.0]])
 bias = torch.tensor([1.0])
