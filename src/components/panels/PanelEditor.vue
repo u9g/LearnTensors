@@ -60,6 +60,11 @@ function applyTab(tabId: string) {
     const code = submissionCodes[tabId] ?? "";
     editorInstance.setValue(code);
     editorInstance.updateOptions({ readOnly: true });
+  } else if (tabId === "test-harness") {
+    const harness = problem.test_harness ?? "";
+    tyChecker?.switchFile("test_harness.py", harness);
+    editorInstance.setValue(harness);
+    editorInstance.updateOptions({ readOnly: true });
   } else {
     const idx = parseInt(tabId.split("-")[1]) - 1;
     const tc = problem.test_cases[idx];

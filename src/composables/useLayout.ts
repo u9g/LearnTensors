@@ -30,17 +30,11 @@ function genPanelId(): string {
   return `panel-${nextPanelId++}`;
 }
 
-function createDefaultLayout(testCaseCount: number): SplitNode {
+function createDefaultLayout(): SplitNode {
   const editorTabs: PanelTab[] = [
     { id: "solution", panelType: "editor", label: "solution.py" },
+    { id: "test-harness", panelType: "editor", label: "test_harness.py" },
   ];
-  for (let i = 0; i < testCaseCount; i++) {
-    editorTabs.push({
-      id: `test-${i + 1}`,
-      panelType: "editor",
-      label: `test_${i + 1}.py`,
-    });
-  }
 
   return {
     type: "split",
@@ -51,6 +45,7 @@ function createDefaultLayout(testCaseCount: number): SplitNode {
         id: "left",
         tabs: [
           { id: "desc", panelType: "description", label: "Description" },
+          { id: "test-cases", panelType: "test-cases", label: "Test Cases" },
           { id: "submissions", panelType: "submissions", label: "Submissions" },
         ],
         activeTabId: "desc",
@@ -149,10 +144,10 @@ function cleanupTree(root: SplitNode): void {
   }
 }
 
-const STORAGE_KEY = "panel-layout-v3";
+const STORAGE_KEY = "panel-layout-v4";
 
-export function useLayout(testCaseCount: number) {
-  const defaultLayout = createDefaultLayout(testCaseCount);
+export function useLayout() {
+  const defaultLayout = createDefaultLayout();
 
   function loadLayout(): SplitNode {
     if (typeof window === "undefined") return defaultLayout;
@@ -319,7 +314,7 @@ export function useLayout(testCaseCount: number) {
   }
 
   function resetLayout() {
-    layout.value = createDefaultLayout(testCaseCount);
+    layout.value = createDefaultLayout();
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEY);
     }

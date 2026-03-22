@@ -16,7 +16,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params, request })
   const slug = params.slug as string;
 
   const problem = await env.DB.prepare(
-    "SELECT id, name, slug, description, starter_code, difficulty FROM problems WHERE slug = ?"
+    "SELECT id, name, slug, description, starter_code, difficulty, test_harness FROM problems WHERE slug = ?"
   )
     .bind(slug)
     .first();

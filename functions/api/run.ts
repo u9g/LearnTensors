@@ -14,6 +14,7 @@ interface TestCase {
 interface RunRequest {
   solution_code: string;
   problem_id: number;
+  test_harness: string;
   test_cases: TestCase[];
 }
 
@@ -133,15 +134,46 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
-  const { solution_code, problem_id, test_cases } =
+  const { solution_code, problem_id, test_harness, test_cases } =
     await request.json<RunRequest>();
 
-  if (!solution_code || !test_cases?.length) {
+  if (!solution_code || !test_cases?.length || !test_harness) {
     return Response.json(
-      { results: [], error: "Missing solution code or test cases" },
+      { results: [], error: "Missing solution code, test harness, or test cases" },
       { status: 400 },
     );
   }
+
+  // Fetch correct code server-side so it's never exposed to the client
+  const problemRow = await env.DB.prepare(
+    "SELECT correct_code FROM problems WHERE id = ?"
+  ).bind(problem_id).first<{ correct_code: string }>();
+  const correct_code = problemRow?.correct_code ?? "";
+
+  // Build test case data as JSON array of arrays
+  const casesJson = JSON.stringify(
+    test_cases.map((tc) => JSON.parse(`[${tc.input}]`)),
+  );
+
+  // Runner reads test cases from stdin
+  const runner = `import json, sys, traceback, resource
+
+exec(open('test_harness.py').read())
+
+cases = json.loads(sys.stdin.read())
+results = []
+for i, args in enumerate(cases):
+    try:
+        test(*args)
+        results.append({"test_id": i + 1, "passed": True, "output": f"Test {i + 1} passed!", "error": ""})
+    except AssertionError as e:
+        results.append({"test_id": i + 1, "passed": False, "output": "", "error": str(e)})
+    except Exception:
+        results.append({"test_id": i + 1, "passed": False, "output": "", "error": traceback.format_exc()})
+
+print("__TEST_RESULTS__:" + json.dumps(results))
+print("__MAXRSS:" + str(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss))
+`;
 
   let sandboxId: string | null = null;
 
@@ -164,71 +196,47 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
     // 2. Wait for sandbox to be ready
     await waitForSandbox(env, sandboxId);
 
-    // 3. Write solution file and memory-tracking wrapper
+    // 3. Write files
     await writeFile(env, sandboxId, "/root/solution.py", solution_code);
-    await writeFile(env, sandboxId, "/root/_run.py",
-      "import sys, runpy, resource\n" +
-      "_exit = 0\n" +
-      "f = sys.argv[1]\n" +
-      "sys.argv = [f]\n" +
-      "try:\n" +
-      "    runpy.run_path(f, run_name='__main__')\n" +
-      "except SystemExit as e:\n" +
-      "    _exit = e.code if isinstance(e.code, int) else 1\n" +
-      "except Exception:\n" +
-      "    import traceback; traceback.print_exc(); _exit = 1\n" +
-      "print('__MAXRSS:' + str(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss))\n" +
-      "sys.exit(_exit)\n"
-    );
-
-    // 4. Write test files and run each
-    const results: TestResult[] = [];
-    const runStartTime = Date.now();
-    let peakMemoryKb = 0;
-
-    for (let i = 0; i < test_cases.length; i++) {
-      const tc = test_cases[i];
-      const testFileName = `test_${i + 1}.py`;
-      const testPath = `/root/${testFileName}`;
-
-      await writeFile(env, sandboxId, testPath, tc.input);
-
-      try {
-        const { exitCode, result } = await executeCommand(
-          env,
-          sandboxId,
-          `bash -c "cd /root && python _run.py ${testFileName} 2>&1"`,
-          30,
-        );
-
-        // Extract peak memory from resource module output
-        const memMatch = result.match(/__MAXRSS:(\d+)/);
-        if (memMatch) {
-          // On Linux ru_maxrss is in KB
-          const memKb = parseInt(memMatch[1]);
-          if (memKb > peakMemoryKb) peakMemoryKb = memKb;
-        }
-        const cleanOutput = result.replace(/__MAXRSS:\d+\n?/, "");
-
-        results.push({
-          test_id: tc.id,
-          passed: exitCode === 0,
-          output: cleanOutput,
-          error: "",
-        });
-      } catch (err: any) {
-        results.push({
-          test_id: tc.id,
-          passed: false,
-          output: "",
-          error: err.message || "Test execution failed",
-        });
-      }
+    if (correct_code) {
+      await writeFile(env, sandboxId, "/root/correct_solution.py", correct_code);
     }
+    await writeFile(env, sandboxId, "/root/test_harness.py", test_harness);
+    await writeFile(env, sandboxId, "/root/runner.py", runner);
+    await writeFile(env, sandboxId, "/root/cases.json", casesJson);
 
+    // 4. Run all tests in a single process
+    const runStartTime = Date.now();
+    const { result: rawOutput } = await executeCommand(
+      env,
+      sandboxId,
+      `bash -c "cd /root && python runner.py < cases.json 2>&1"`,
+      60,
+    );
     const runtimeMs = Date.now() - runStartTime;
 
-    // 5. Cache results in DB with incrementing submission number
+    // Parse results
+    let results: TestResult[] = [];
+    const resultsMatch = rawOutput.match(/__TEST_RESULTS__:(.+)/);
+    if (resultsMatch) {
+      results = JSON.parse(resultsMatch[1]);
+    } else {
+      // Runner itself crashed — report as a single error
+      results = test_cases.map((tc, i) => ({
+        test_id: i + 1,
+        passed: false,
+        output: "",
+        error: rawOutput || "Test runner failed",
+      }));
+    }
+
+    let peakMemoryKb = 0;
+    const memMatch = rawOutput.match(/__MAXRSS:(\d+)/);
+    if (memMatch) {
+      peakMemoryKb = parseInt(memMatch[1]);
+    }
+
+    // 5. Cache results in DB
     let submissionNumber = 0;
     if (problem_id) {
       const prev = await env.DB.prepare(
@@ -248,7 +256,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
       { status: 500 },
     );
   } finally {
-    // 6. Clean up sandbox
     if (sandboxId) {
       try {
         await daytonaFetch(

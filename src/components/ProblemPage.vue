@@ -18,13 +18,17 @@ interface Problem {
   description: string;
   starter_code: string;
   difficulty: "Easy" | "Medium" | "Hard";
+  test_harness: string;
   test_cases: TestCase[];
 }
 
 const props = defineProps<{ problem: Problem }>();
 
 const { layout, moveTab, addTab, removeTab, splitPanel, updateSizesForSplit, resetLayout } =
-  useLayout(props.problem.test_cases.length);
+  useLayout();
+
+// Editable test cases — start with DB test cases, user can add more
+const testCases = ref<TestCase[]>([...props.problem.test_cases]);
 
 // Shared state for child panels
 const solutionCode = ref(props.problem.starter_code);
@@ -94,7 +98,8 @@ async function runCode() {
       body: JSON.stringify({
         solution_code: solutionCode.value,
         problem_id: props.problem.id,
-        test_cases: props.problem.test_cases,
+        test_harness: props.problem.test_harness,
+        test_cases: testCases.value,
       }),
     });
     const data = await res.json();
@@ -142,6 +147,7 @@ function closeTab(tabId: string) {
 
 // Provide everything to child panels
 provide("problem", props.problem);
+provide("testCases", testCases);
 provide("solutionCode", solutionCode);
 provide("cursorPosition", cursorPosition);
 provide("isDark", isDark);
