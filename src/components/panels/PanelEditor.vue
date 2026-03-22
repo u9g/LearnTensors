@@ -87,6 +87,17 @@ onMounted(async () => {
     workerPromise,
   ]);
 
+  // Load saved solution code before creating editor
+  try {
+    const res = await fetch(`/api/solution?problem_id=${problem.id}`);
+    const data = await res.json();
+    if (data.code !== null && data.code !== undefined) {
+      solutionCode.value = data.code;
+    }
+  } catch {
+    // Use starter code as fallback
+  }
+
   monacoRef.value = monaco;
   self.MonacoEnvironment = {
     getWorker: () => new editorWorker.default(),
@@ -120,6 +131,13 @@ onMounted(async () => {
   });
   editorInstance = editor;
   setEditorInstance(editor);
+
+  editor.onDidChangeModelContent(() => {
+    if (currentTabId === "solution") {
+      solutionCode.value = editor.getValue();
+    }
+  });
+
   if (props.activeTabId !== "solution") {
     applyTab(props.activeTabId);
   }

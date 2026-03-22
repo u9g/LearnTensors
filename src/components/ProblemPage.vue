@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, provide, onMounted } from "vue";
+import { ref, reactive, provide, onMounted, watch } from "vue";
 import TopBar from "./TopBar.vue";
 import ClientOnly from "./ClientOnly.vue";
 import SplitLayout from "./layout/SplitLayout.vue";
@@ -53,10 +53,8 @@ const submissionNumber = ref<number | null>(null);
 const runtimeMs = ref<number | null>(null);
 const submissionDate = ref<string | null>(null);
 
-let editorInstance: any = null;
-
-function setEditorInstance(editor: any) {
-  editorInstance = editor;
+function setEditorInstance(_editor: any) {
+  // Provided to PanelEditor for lifecycle management
 }
 
 function setTyChecker(_checker: any) {
@@ -81,10 +79,6 @@ async function loadCachedResults() {
 
 async function runCode() {
   if (isRunning.value) return;
-
-  if (editorInstance) {
-    solutionCode.value = editorInstance.getValue();
-  }
 
   isRunning.value = true;
   showOutput.value = true;
@@ -170,6 +164,23 @@ provide("closeTab", closeTab);
 provide("splitPanel", splitPanel);
 provide("updateSizesForSplit", updateSizesForSplit);
 provide("resetLayout", resetLayout);
+
+// Debounce-save solution code to server
+let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+function debounceSave() {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    const code = solutionCode.value;
+    if (code.length > 1_000_000) return;
+    fetch("/api/solution", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ problem_id: props.problem.id, code }),
+    }).catch(() => {});
+  }, 1000);
+}
+
+watch(solutionCode, debounceSave);
 
 onMounted(() => {
   loadCachedResults();

@@ -144,6 +144,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
     );
   }
 
+  if (solution_code.length > 1_000_000) {
+    return Response.json(
+      { results: [], error: "Solution code exceeds 1MB limit" },
+      { status: 413 },
+    );
+  }
+
   // Fetch correct code server-side so it's never exposed to the client
   const problemRow = await env.DB.prepare(
     "SELECT correct_code FROM problems WHERE id = ?"
