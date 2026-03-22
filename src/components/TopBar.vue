@@ -5,6 +5,7 @@ const props = defineProps<{ showRun?: boolean }>();
 const editorReady = inject<Ref<boolean>>("editorReady", ref(false));
 const isRunning = inject<Ref<boolean>>("isRunning", ref(false));
 const runCode = inject<() => void>("runCode", () => {});
+const resetLayout = inject<(() => void) | null>("resetLayout", null);
 const monacoRef = inject<Ref<any>>("monacoRef", ref(null));
 
 const isDark = inject<Ref<boolean>>("isDark", ref(
@@ -106,6 +107,19 @@ function toggleTheme() {
       </button>
     </div>
     <nav class="top-bar-nav">
+      <button
+        v-if="resetLayout"
+        class="top-bar-theme-toggle"
+        title="Reset panel layout"
+        @click="resetLayout"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" />
+          <rect x="14" y="3" width="7" height="7" />
+          <rect x="3" y="14" width="7" height="7" />
+          <rect x="14" y="14" width="7" height="7" />
+        </svg>
+      </button>
       <button
         ref="themeToggleEl"
         class="top-bar-theme-toggle"

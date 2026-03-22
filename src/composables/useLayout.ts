@@ -1,11 +1,12 @@
 import { ref, watch } from "vue";
 
-export type PanelType = "description" | "test-cases" | "editor" | "output";
+export type PanelType = "description" | "submissions" | "submission-detail" | "test-cases" | "editor" | "output";
 
 export interface PanelTab {
   id: string;
   panelType: PanelType;
   label: string;
+  closable?: boolean;
 }
 
 export interface PanelNode {
@@ -50,6 +51,7 @@ function createDefaultLayout(testCaseCount: number): SplitNode {
         id: "left",
         tabs: [
           { id: "desc", panelType: "description", label: "Description" },
+          { id: "submissions", panelType: "submissions", label: "Submissions" },
         ],
         activeTabId: "desc",
       },
@@ -147,7 +149,7 @@ function cleanupTree(root: SplitNode): void {
   }
 }
 
-const STORAGE_KEY = "panel-layout-v2";
+const STORAGE_KEY = "panel-layout-v3";
 
 export function useLayout(testCaseCount: number) {
   const defaultLayout = createDefaultLayout(testCaseCount);
@@ -282,6 +284,35 @@ export function useLayout(testCaseCount: number) {
     layout.value = { ...root };
   }
 
+  function addTab(nearTabId: string, tab: PanelTab, activate = true) {
+    const root = layout.value;
+    const panel = findTabOwner(root, nearTabId);
+    if (!panel) return;
+    // Don't add duplicates
+    if (panel.tabs.some((t) => t.id === tab.id)) {
+      if (activate) panel.activeTabId = tab.id;
+      layout.value = { ...root };
+      return;
+    }
+    panel.tabs.push(tab);
+    if (activate) panel.activeTabId = tab.id;
+    layout.value = { ...root };
+  }
+
+  function removeTab(tabId: string) {
+    const root = layout.value;
+    const panel = findTabOwner(root, tabId);
+    if (!panel) return;
+    const idx = panel.tabs.findIndex((t) => t.id === tabId);
+    if (idx === -1) return;
+    panel.tabs.splice(idx, 1);
+    if (panel.activeTabId === tabId) {
+      panel.activeTabId = panel.tabs[Math.min(idx, panel.tabs.length - 1)]?.id ?? "";
+    }
+    cleanupTree(root);
+    layout.value = { ...root };
+  }
+
   function updateSizesForSplit(split: SplitNode, newSizes: number[]) {
     split.sizes = newSizes;
     persistLayout();
@@ -297,6 +328,8 @@ export function useLayout(testCaseCount: number) {
   return {
     layout,
     moveTab,
+    addTab,
+    removeTab,
     splitPanel,
     updateSizesForSplit,
     resetLayout,

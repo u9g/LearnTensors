@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, provide, onMounted } from "vue";
+import { ref, reactive, provide, onMounted } from "vue";
 import TopBar from "./TopBar.vue";
 import ClientOnly from "./ClientOnly.vue";
 import SplitLayout from "./layout/SplitLayout.vue";
@@ -23,7 +23,7 @@ interface Problem {
 
 const props = defineProps<{ problem: Problem }>();
 
-const { layout, moveTab, splitPanel, updateSizesForSplit, resetLayout } =
+const { layout, moveTab, addTab, removeTab, splitPanel, updateSizesForSplit, resetLayout } =
   useLayout(props.problem.test_cases.length);
 
 // Shared state for child panels
@@ -45,6 +45,9 @@ const runResults = ref<
   Array<{ test_id: number; passed: boolean; output: string; error: string }>
 >([]);
 const runError = ref<string | null>(null);
+const submissionNumber = ref<number | null>(null);
+const runtimeMs = ref<number | null>(null);
+const submissionDate = ref<string | null>(null);
 
 let editorInstance: any = null;
 
@@ -62,6 +65,9 @@ async function loadCachedResults() {
     const data = await res.json();
     if (data.results?.length) {
       runResults.value = data.results;
+      submissionNumber.value = data.submission_number ?? null;
+      runtimeMs.value = data.runtime_ms ?? null;
+      submissionDate.value = data.created_at ?? null;
       showOutput.value = true;
     }
   } catch {
@@ -94,10 +100,43 @@ async function runCode() {
     const data = await res.json();
     runResults.value = data.results ?? [];
     runError.value = data.error ?? null;
+    submissionNumber.value = data.submission_number ?? null;
+    runtimeMs.value = data.runtime_ms ?? null;
+    submissionDate.value = new Date().toISOString();
   } catch {
     runError.value = "Network error — could not reach server";
   } finally {
     isRunning.value = false;
+  }
+}
+
+// Submission tab support — only one at a time
+const submissionCodes = reactive<Record<string, string>>({});
+let currentSubmissionTabId: string | null = null;
+
+function openSubmission(id: number, _code: string, submissionNumber?: number) {
+  const tabId = `submission-${id}`;
+
+  // Remove existing submission tab if different
+  if (currentSubmissionTabId && currentSubmissionTabId !== tabId) {
+    removeTab(currentSubmissionTabId);
+    delete submissionCodes[currentSubmissionTabId];
+  }
+
+  currentSubmissionTabId = tabId;
+  addTab("solution", {
+    id: tabId,
+    panelType: "submission-detail",
+    label: `Submission ${submissionNumber ?? id}`,
+    closable: true,
+  });
+}
+
+function closeTab(tabId: string) {
+  removeTab(tabId);
+  if (tabId === currentSubmissionTabId) {
+    delete submissionCodes[tabId];
+    currentSubmissionTabId = null;
   }
 }
 
@@ -113,9 +152,15 @@ provide("showOutput", showOutput);
 provide("runResults", runResults);
 provide("runError", runError);
 provide("runCode", runCode);
+provide("submissionNumber", submissionNumber);
+provide("runtimeMs", runtimeMs);
+provide("submissionDate", submissionDate);
 provide("setEditorInstance", setEditorInstance);
 provide("setTyChecker", setTyChecker);
+provide("submissionCodes", submissionCodes);
+provide("openSubmission", openSubmission);
 provide("moveTab", moveTab);
+provide("closeTab", closeTab);
 provide("splitPanel", splitPanel);
 provide("updateSizesForSplit", updateSizesForSplit);
 provide("resetLayout", resetLayout);

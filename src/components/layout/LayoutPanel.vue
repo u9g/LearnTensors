@@ -2,6 +2,8 @@
 import { ref, computed, inject } from "vue";
 import type { PanelNode } from "../../composables/useLayout";
 import PanelDescription from "../panels/PanelDescription.vue";
+import PanelSubmissions from "../panels/PanelSubmissions.vue";
+import PanelSubmissionDetail from "../panels/PanelSubmissionDetail.vue";
 import PanelEditor from "../panels/PanelEditor.vue";
 import PanelOutput from "../panels/PanelOutput.vue";
 
@@ -10,6 +12,7 @@ const props = defineProps<{
 }>();
 
 const moveTab = inject<(tabId: string, from: string, to: string, idx?: number) => void>("moveTab")!;
+const closeTab = inject<(tabId: string) => void>("closeTab")!;
 const splitPanel = inject<(panelId: string, dir: "horizontal" | "vertical", tabId: string, pos: "before" | "after") => void>("splitPanel")!;
 
 const activeTab = computed(() => {
@@ -208,6 +211,11 @@ const tabInsertLineStyle = computed(() => {
         @dragstart="(e: DragEvent) => onTabDragStart(e, tab.id)"
       >
         {{ tab.label }}
+        <span
+          v-if="tab.closable"
+          class="tab-close"
+          @click.stop="closeTab(tab.id)"
+        >&times;</span>
       </div>
       <div class="tab-bar-spacer"></div>
       <div v-if="tabInsertLineStyle" :style="tabInsertLineStyle" />
@@ -223,6 +231,11 @@ const tabInsertLineStyle = computed(() => {
       <template v-if="activeTab">
         <PanelDescription
           v-if="activeTab.panelType === 'description'"
+        />
+        <PanelSubmissions v-else-if="activeTab.panelType === 'submissions'" />
+        <PanelSubmissionDetail
+          v-else-if="activeTab.panelType === 'submission-detail'"
+          :submission-id="Number(activeTab.id.replace('submission-', ''))"
         />
         <PanelEditor v-else-if="activeTab.panelType === 'editor'" :active-tab-id="activeTab.id" />
         <PanelOutput v-else-if="activeTab.panelType === 'output'" />
@@ -277,6 +290,15 @@ const tabInsertLineStyle = computed(() => {
 }
 .panel-tab.before-active {
   border-right-color: transparent;
+}
+.tab-close {
+  margin-left: 6px;
+  font-size: 16px;
+  line-height: 1;
+  color: #888;
+}
+.tab-close:hover {
+  color: var(--fg, #fff);
 }
 .tab-bar-spacer {
   flex: 1;

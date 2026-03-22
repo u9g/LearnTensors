@@ -18,6 +18,7 @@ const monacoRef = inject<Ref<any>>("monacoRef")!;
 const editorReady = inject<Ref<boolean>>("editorReady")!;
 const setEditorInstance = inject<(editor: any) => void>("setEditorInstance")!;
 const setTyChecker = inject<(checker: any) => void>("setTyChecker")!;
+const submissionCodes = inject<Record<string, string>>("submissionCodes", {});
 
 const monacoPromise =
   typeof window !== "undefined" ? import("monaco-editor") : null;
@@ -55,6 +56,10 @@ function applyTab(tabId: string) {
     tyChecker?.switchFile("solution.py", solutionCode.value);
     editorInstance.setValue(solutionCode.value);
     editorInstance.updateOptions({ readOnly: false });
+  } else if (tabId.startsWith("submission-")) {
+    const code = submissionCodes[tabId] ?? "";
+    editorInstance.setValue(code);
+    editorInstance.updateOptions({ readOnly: true });
   } else {
     const idx = parseInt(tabId.split("-")[1]) - 1;
     const tc = problem.test_cases[idx];
