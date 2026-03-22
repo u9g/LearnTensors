@@ -1,5 +1,5 @@
 diff --git a/node_modules/monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsController.js b/node_modules/monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsController.js
-index ebc9d1a..4066946 100644
+index ebc9d1a..54c8070 100644
 --- a/node_modules/monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsController.js
 +++ b/node_modules/monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsController.js
 @@ -212,7 +212,7 @@ let InlayHintsController = class InlayHintsController {
@@ -23,6 +23,21 @@ index ebc9d1a..4066946 100644
          }));
          // mouse gestures
          this._sessionDisposables.add(this._installDblClickGesture(() => scheduler.schedule(0)));
+@@ -502,7 +501,13 @@ let InlayHintsController = class InlayHintsController {
+         const decorationIdsToReplace = [];
+         for (const [id, metadata] of this._decorationsMetadata) {
+             const range = this._editor.getModel()?.getDecorationRange(id);
+-            if (range && ranges.some(r => r.containsRange(range))) {
++            if (!range) {
++                // Decoration was destroyed (e.g. by model.setValue) — clean up stale entry
++                metadata.classNameRef.dispose();
++                this._decorationsMetadata.delete(id);
++                continue;
++            }
++            if (ranges.some(r => r.containsRange(range))) {
+                 decorationIdsToReplace.push(id);
+                 metadata.classNameRef.dispose();
+                 this._decorationsMetadata.delete(id);
 diff --git a/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js b/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js
 index af9ac92..8fa8632 100644
 --- a/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js
