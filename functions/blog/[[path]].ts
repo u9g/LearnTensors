@@ -119,7 +119,7 @@ export const onRequestGet: PagesFunction = async ({ request }) => {
   <script>if(localStorage.getItem('editor-theme')==='light'){document.documentElement.classList.add('light-mode')}<\/script>
 </head>
 <body>
-  <div id="app">${appHtml}</div>
+  <div id="app" style="visibility:hidden">${appHtml}</div>
   ${viteClient}
   <script type="module" src="${jsPath}"><\/script>
 </body>

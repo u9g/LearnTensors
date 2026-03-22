@@ -126,7 +126,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <TopBar />
+  <TopBar show-run />
   <ClientOnly>
     <div class="layout">
       <SplitLayout :node="layout" />
@@ -149,7 +149,7 @@ onMounted(() => {
             <div class="editor-tab active">solution.py</div>
           </div>
           <div class="editor-container">
-            <pre class="editor-placeholder"><code>{{ problem.starter_code }}</code></pre>
+            <div class="editor-placeholder"></div>
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { inject, ref, type Ref } from "vue";
 
+const props = defineProps<{ showRun?: boolean }>();
 const editorReady = inject<Ref<boolean>>("editorReady", ref(false));
 const isRunning = inject<Ref<boolean>>("isRunning", ref(false));
 const runCode = inject<() => void>("runCode", () => {});
@@ -86,10 +87,10 @@ function toggleTheme() {
     <a href="/" class="top-bar-logo">LearnTensors</a>
     <div class="top-bar-center">
       <button
-        v-if="editorReady"
+        v-if="showRun"
         class="run-button"
         :disabled="isRunning"
-        @click="runCode"
+        @click="editorReady && runCode()"
       >
         <svg
           v-if="!isRunning"
