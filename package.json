@@ -5,7 +5,13 @@
   "type": "module",
   "scripts": {
     "build:ty-wasm": "bash scripts/build-ty-wasm.sh",
-    "dev": "rm -rf .wrangler && vite build --ssr src/entry-server.ts --outDir dist/server && echo y | wrangler d1 migrations apply learntensors-db --local && wrangler d1 execute learntensors-db --local --file=seed.sql && stmux -- [ [ \"vite --port 5173\" .. \"wrangler pages dev --proxy=5173 --compatibility-date=2024-01-01\" ] : \"sh dev-url.sh\" ]",
+    "dev": "npm run dev:clean && npm run dev:ssr && npm run dev:migrate && npm run dev:seed && stmux -- [ [ \"npm run dev:vite\" .. \"npm run dev:wrangler\" ] : \"sh dev-url.sh\" ]",
+    "dev:clean": "rm -rf .wrangler dev-logs && mkdir -p dev-logs && echo 'clean' > dev-logs/clean",
+    "dev:ssr": "vite build --ssr src/entry-server.ts --outDir dist/server && echo 'ssr' > dev-logs/ssr",
+    "dev:migrate": "echo y | wrangler d1 migrations apply learntensors-db --local && echo 'migrate' > dev-logs/migrate",
+    "dev:seed": "wrangler d1 execute learntensors-db --local --file=seed.sql && echo 'seed' > dev-logs/seed",
+    "dev:vite": "echo 'vite' > dev-logs/vite && vite --port 5173",
+    "dev:wrangler": "echo 'wrangler' > dev-logs/wrangler && wrangler pages dev --proxy=5173 --compatibility-date=2024-01-01",
     "build": "npm run build:ty-wasm && vue-tsc -b && vite build && vite build --ssr src/entry-server.ts --outDir dist/server",
     "preview": "vite preview",
     "postinstall": "patch-package"
