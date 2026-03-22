@@ -37,15 +37,27 @@ const loading = ref(true);
 const expandedTests = ref<Set<number>>(new Set());
 const codeEditorEl = ref<HTMLElement | null>(null);
 let codeEditor: any = null;
+let tyChecker: import("../../composables/useTyChecker").TyChecker | null = null;
 
 const monacoPromise =
   typeof window !== "undefined" ? import("monaco-editor") : null;
+const workerPromise =
+  typeof window !== "undefined"
+    ? import("monaco-editor/esm/vs/editor/editor.worker?worker")
+    : null;
+const tyPromise =
+  typeof window !== "undefined"
+    ? import("../../composables/useTyChecker")
+    : null;
 
 async function createCodeEditor() {
-  if (!monacoPromise || !codeEditorEl.value || !detail.value) return;
-  const monaco = await monacoPromise;
+  if (!monacoPromise || !workerPromise || !codeEditorEl.value || !detail.value) return;
+  const [monaco, editorWorker] = await Promise.all([monacoPromise, workerPromise]);
 
-  if (!monaco.editor.defineTheme) return;
+  self.MonacoEnvironment = {
+    getWorker: () => new editorWorker.default(),
+  };
+
   monaco.editor.defineTheme("learntensors-dark", darkModernTheme as any);
   monaco.editor.defineTheme("learntensors-light", lightModernTheme as any);
   enhancePythonTokenizer(monaco);
@@ -70,6 +82,7 @@ async function createCodeEditor() {
     scrollbar: { useShadows: false, vertical: "hidden", horizontal: "auto" },
     scrollBeyondLastLine: false,
     padding: { top: 12 },
+    tabSize: 4,
     lineNumbers: "on",
     renderLineHighlight: "none",
     domReadOnly: true,
@@ -77,11 +90,36 @@ async function createCodeEditor() {
     "semanticHighlighting.enabled": true,
   });
 
+  // Force tokenization so highlighting appears immediately
+  const model = codeEditor.getModel() as any;
+  if (model?.tokenization?.forceTokenization) {
+    model.tokenization.forceTokenization(model.getLineCount());
+  }
+
   // Size the editor to fit its content
   const lineHeight = codeEditor.getOption(monaco.editor.EditorOption.lineHeight);
   const height = lineCount * lineHeight + 24;
   codeEditorEl.value.style.height = `${height}px`;
   codeEditor.layout();
+
+  // Initialize ty type checker for hover, diagnostics, and semantic tokens
+  if (tyPromise) {
+    void (async () => {
+      try {
+        const tyModule = await tyPromise;
+        if (tyChecker) {
+          tyChecker.dispose();
+        }
+        tyChecker = await tyModule.initTyChecker(
+          monaco,
+          codeEditor,
+          detail.value!.solution_code,
+        );
+      } catch (e) {
+        console.warn("ty type checker failed to load for submission:", e);
+      }
+    })();
+  }
 }
 
 async function fetchDetail() {
@@ -141,6 +179,10 @@ const passRate = computed(() => {
 onMounted(fetchDetail);
 watch(() => props.submissionId, fetchDetail);
 onUnmounted(() => {
+  if (tyChecker) {
+    tyChecker.dispose();
+    tyChecker = null;
+  }
   if (codeEditor) {
     codeEditor.dispose();
     codeEditor = null;
