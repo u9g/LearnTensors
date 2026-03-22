@@ -30,6 +30,7 @@ const renderedDescription = computed(() => {
 });
 
 const editorEl = ref<HTMLElement | null>(null);
+const leftPanelEl = ref<HTMLElement | null>(null);
 const editorReady = ref(false);
 let tyCleanup: (() => void) | null = null;
 
@@ -44,16 +45,25 @@ function toggleTheme() {
   const newDark = !isDark.value;
   const apply = () => {
     isDark.value = newDark;
-    monacoRef!.editor.setTheme(newDark ? "learntensors" : "vs");
+    const theme = newDark ? "learntensors" : "vs";
+    monacoRef!.editor.setTheme(theme);
     localStorage.setItem("editor-theme", newDark ? "dark" : "light");
+    // Re-colorize all code blocks with new theme
+    if (leftPanelEl.value) {
+      for (const el of leftPanelEl.value.querySelectorAll<HTMLElement>("pre code")) {
+        monacoRef!.editor.colorizeElement(el, { theme });
+      }
+    }
     const s = document.documentElement.style;
     if (newDark) {
       s.removeProperty("--bg"); s.removeProperty("--bg2"); s.removeProperty("--bg3");
       s.removeProperty("--fg"); s.removeProperty("--fg2"); s.removeProperty("--border");
+      s.removeProperty("--code-bg");
     } else {
       s.setProperty("--bg", "#fff"); s.setProperty("--bg2", "#f5f5f5");
       s.setProperty("--bg3", "#e8e8e8"); s.setProperty("--fg", "#1e1e1e");
       s.setProperty("--fg2", "#333"); s.setProperty("--border", "#ccc");
+      s.setProperty("--code-bg", "#f0f0f0");
     }
   };
 
@@ -177,6 +187,17 @@ onMounted(async () => {
   } catch (e) {
     console.warn("ty type checker failed to load:", e);
   }
+
+  // Colorize all code blocks in the left panel (description + test cases) using Monaco
+  if (leftPanelEl.value) {
+    const codeEls = leftPanelEl.value.querySelectorAll<HTMLElement>("pre code");
+    for (const el of codeEls) {
+      const lang = el.className.match(/language-(\w+)/)?.[1] || "python";
+      el.setAttribute("data-lang", lang);
+      el.textContent = el.textContent?.replace(/\n$/, "") ?? "";
+      await monaco.editor.colorizeElement(el, { theme: isDark.value ? "learntensors" : "vs" });
+    }
+  }
 });
 
 onUnmounted(() => {
@@ -187,7 +208,7 @@ onUnmounted(() => {
 <template>
   <TopBar />
   <div class="layout">
-    <div class="left-panel">
+    <div ref="leftPanelEl" class="left-panel">
       <div class="problem-header">
         <h1 class="problem-title">{{ problem.id }}. {{ problem.name }}</h1>
         <span class="problem-difficulty" :class="difficultyClass">{{
@@ -399,13 +420,13 @@ body {
 .problem-description code {
   font-family: "SF Mono", "Fira Code", Menlo, Consolas, monospace;
   font-size: 13px;
-  background: #2a2a2a;
+  background: var(--code-bg, #2a2a2a);
   padding: 2px 5px;
   border-radius: 3px;
-  color: #e0e0e0;
+  color: var(--fg2, #e0e0e0);
 }
 .problem-description pre {
-  background: #262626;
+  background: var(--code-bg, #262626);
   border-radius: 6px;
   padding: 12px 14px;
   overflow-x: auto;
@@ -415,7 +436,7 @@ body {
   background: none;
   padding: 0;
   font-size: 13px;
-  color: #e0e0e0;
+  color: var(--fg2, #e0e0e0);
 }
 .problem-description ul,
 .problem-description ol {
@@ -441,7 +462,7 @@ body {
   color: var(--fg, #f5f5f5);
 }
 .test-case {
-  background: #262626;
+  background: var(--code-bg, #262626);
   border-radius: 6px;
   padding: 12px 14px;
   overflow-x: auto;
@@ -463,7 +484,7 @@ body {
 .test-case code {
   font-family: "SF Mono", "Fira Code", Menlo, Consolas, monospace;
   font-size: 13px;
-  color: #e0e0e0;
+  color: var(--fg2, #e0e0e0);
   white-space: pre-wrap;
   word-break: break-word;
 }
