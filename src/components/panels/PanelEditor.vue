@@ -157,10 +157,7 @@ onUnmounted(() => {
 <template>
   <div class="panel-editor">
     <div class="editor-container">
-      <pre
-        v-if="!editorReady"
-        class="editor-placeholder"
-      ><code>{{ problem.starter_code }}</code></pre>
+      <div v-if="!editorReady" class="editor-placeholder"></div>
       <div
         ref="editorEl"
         style="width: 100%; height: 100%; position: absolute; top: 0; left: 0"
