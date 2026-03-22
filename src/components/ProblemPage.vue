@@ -594,16 +594,16 @@ body {
 }
 
 /* Light mode scrollbar for left panel */
-:global(.light-mode) .left-panel::-webkit-scrollbar-track {
+.light-mode .left-panel::-webkit-scrollbar-track {
   background: #f0f0f0;
 }
-:global(.light-mode) .left-panel::-webkit-scrollbar-thumb {
+.light-mode .left-panel::-webkit-scrollbar-thumb {
   background: #c0c0c0;
 }
-:global(.light-mode) .left-panel::-webkit-scrollbar-thumb:hover {
+.light-mode .left-panel::-webkit-scrollbar-thumb:hover {
   background: #a0a0a0;
 }
-:global(.light-mode) .left-panel {
+.light-mode .left-panel {
   scrollbar-color: #c0c0c0 #f0f0f0;
 }
 
