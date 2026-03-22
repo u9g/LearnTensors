@@ -30,15 +30,21 @@ export const onRequestGet: PagesFunction = async ({ request }) => {
   <\/script>`
     : "";
 
-  const title =
-    path === "/blog/" || path === "/blog"
-      ? "Engineering Blog - LearnTensors"
-      : "Syntax-Highlighted Hover Tooltips in Monaco Editor - LearnTensors Blog";
+  const postMeta: Record<string, { title: string; description: string }> = {
+    "monaco-hover-syntax-highlighting": {
+      title: "Syntax-Highlighted Hover Tooltips in Monaco Editor - LearnTensors Blog",
+      description: "How to add full syntax highlighting to Monaco editor hover tooltips, working around DOMPurify sanitization.",
+    },
+    "blog-code-block-colorization": {
+      title: "Getting VS Code-Quality Syntax Highlighting in Blog Code Blocks - LearnTensors Blog",
+      description: "How we built Monaco-powered syntax highlighting for static blog code blocks with function call detection, type annotations, and bracket pair colorization.",
+    },
+  };
 
-  const description =
-    path === "/blog/" || path === "/blog"
-      ? "Technical deep dives from the LearnTensors team"
-      : "How to add full syntax highlighting to Monaco editor hover tooltips, working around DOMPurify sanitization.";
+  const slug = path.match(/^\/blog\/([a-z0-9-]+)\/?$/)?.[1] ?? "";
+  const meta = postMeta[slug];
+  const title = meta?.title ?? "Engineering Blog - LearnTensors";
+  const description = meta?.description ?? "Technical deep dives from the LearnTensors team";
 
   const html = `<!doctype html>
 <html lang="en">

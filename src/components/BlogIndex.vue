@@ -1,6 +1,11 @@
 <script setup lang="ts">
 const posts = [
   {
+    slug: "blog-code-block-colorization",
+    title: "Getting VS Code-Quality Syntax Highlighting in Blog Code Blocks",
+    date: "March 22, 2026",
+  },
+  {
     slug: "monaco-hover-syntax-highlighting",
     title: "Syntax-Highlighted Hover Tooltips in Monaco Editor",
     date: "March 22, 2026",
