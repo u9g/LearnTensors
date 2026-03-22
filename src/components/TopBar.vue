@@ -29,4 +29,14 @@
   letter-spacing: 2px;
   text-decoration: none;
 }
+
+/* Light mode header */
+.light-mode .top-bar {
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+}
+
+.light-mode .top-bar-logo {
+  color: #1e1e1e;
+}
 </style>

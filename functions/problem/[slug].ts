@@ -107,7 +107,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params, request })
     @media(max-width:768px){body{overflow:auto;height:auto}.layout{flex-direction:column;height:auto}.left-panel{width:100%;border-right:none;border-bottom:1px solid var(--border);padding:16px}.right-panel{height:60vh;min-height:300px}.problem-title{font-size:18px}}
   </style>
   <script>
-    if(localStorage.getItem('editor-theme')==='light'){var s=document.documentElement.style;s.setProperty('--bg','#fff');s.setProperty('--bg2','#f5f5f5');s.setProperty('--bg3','#e8e8e8');s.setProperty('--fg','#1e1e1e');s.setProperty('--fg2','#333');s.setProperty('--border','#ccc');s.setProperty('--code-bg','#f0f0f0')}
+    if(localStorage.getItem('editor-theme')==='light'){document.documentElement.classList.add('light-mode');var s=document.documentElement.style;s.setProperty('--bg','#fff');s.setProperty('--bg2','#f5f5f5');s.setProperty('--bg3','#e8e8e8');s.setProperty('--fg','#1e1e1e');s.setProperty('--fg2','#333');s.setProperty('--border','#ccc');s.setProperty('--code-bg','#f0f0f0')}
   <\/script>
 </head>
 <body>

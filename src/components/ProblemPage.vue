@@ -113,6 +113,7 @@ function switchTab(tabId: string) {
 }
 
 const isDark = ref(localStorage.getItem("editor-theme") !== "light");
+if (!isDark.value) document.documentElement.classList.add("light-mode");
 const themeToggleEl = ref<HTMLElement | null>(null);
 let monacoRef: typeof import("monaco-editor") | null = null;
 
@@ -136,6 +137,7 @@ function toggleTheme() {
     }
     const s = document.documentElement.style;
     if (newDark) {
+      document.documentElement.classList.remove("light-mode");
       s.removeProperty("--bg");
       s.removeProperty("--bg2");
       s.removeProperty("--bg3");
@@ -144,6 +146,7 @@ function toggleTheme() {
       s.removeProperty("--border");
       s.removeProperty("--code-bg");
     } else {
+      document.documentElement.classList.add("light-mode");
       s.setProperty("--bg", "#fff");
       s.setProperty("--bg2", "#f5f5f5");
       s.setProperty("--bg3", "#e8e8e8");
@@ -607,6 +610,20 @@ body {
 }
 .left-panel::-webkit-scrollbar-thumb:hover {
   background: #777;
+}
+
+/* Light mode scrollbar for left panel */
+:global(.light-mode) .left-panel::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+:global(.light-mode) .left-panel::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+}
+:global(.light-mode) .left-panel::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
+:global(.light-mode) .left-panel {
+  scrollbar-color: #c0c0c0 #f0f0f0;
 }
 
 @media (max-width: 768px) {

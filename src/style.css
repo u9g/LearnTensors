@@ -27,3 +27,21 @@ body {
   scrollbar-color: #6b6b6b #2c2c2c;
   scrollbar-width: auto;
 }
+
+/* Light mode scrollbar */
+.light-mode ::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+
+.light-mode ::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border-radius: 6px;
+}
+
+.light-mode ::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
+
+.light-mode * {
+  scrollbar-color: #c0c0c0 #f0f0f0;
+}
