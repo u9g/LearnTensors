@@ -53,6 +53,58 @@ const activeTab = ref("solution");
 let editorInstance: any = null;
 let solutionCode = props.problem.starter_code;
 
+const isRunning = ref(false);
+const showOutput = ref(false);
+const runResults = ref<
+  Array<{ test_id: number; passed: boolean; output: string; error: string }>
+>([]);
+const runError = ref<string | null>(null);
+
+async function loadCachedResults() {
+  try {
+    const res = await fetch(`/api/run?problem_id=${props.problem.id}`);
+    const data = await res.json();
+    if (data.results?.length) {
+      runResults.value = data.results;
+      showOutput.value = true;
+    }
+  } catch {
+    // Ignore — no cached results
+  }
+}
+
+async function runCode() {
+  if (isRunning.value) return;
+
+  if (activeTab.value === "solution" && editorInstance) {
+    solutionCode = editorInstance.getValue();
+  }
+
+  isRunning.value = true;
+  showOutput.value = true;
+  runResults.value = [];
+  runError.value = null;
+
+  try {
+    const res = await fetch("/api/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        solution_code: solutionCode,
+        problem_id: props.problem.id,
+        test_cases: props.problem.test_cases,
+      }),
+    });
+    const data = await res.json();
+    runResults.value = data.results ?? [];
+    runError.value = data.error ?? null;
+  } catch {
+    runError.value = "Network error — could not reach server";
+  } finally {
+    isRunning.value = false;
+  }
+}
+
 const tabs = computed(() => {
   const t = [{ id: "solution", label: "solution.py" }];
   props.problem.test_cases.forEach((_, i) => {
@@ -175,6 +227,8 @@ function toggleTheme() {
 }
 
 onMounted(async () => {
+  loadCachedResults();
+
   // Await pre-started imports (fired at module scope, not here)
   const [monaco, editorWorker] = await Promise.all([
     monacoPromise!,
@@ -284,6 +338,25 @@ onUnmounted(() => {
         >
           {{ tab.label }}
         </div>
+        <div style="flex: 1"></div>
+        <button
+          v-if="editorReady"
+          class="run-button"
+          :disabled="isRunning"
+          @click="runCode"
+        >
+          <svg
+            v-if="!isRunning"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <polygon points="5,3 19,12 5,21" />
+          </svg>
+          <span v-else class="spinner"></span>
+          {{ isRunning ? "Running..." : "Run" }}
+        </button>
       </div>
       <div class="editor-container">
         <pre
@@ -336,6 +409,37 @@ onUnmounted(() => {
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
           </svg>
         </button>
+      </div>
+      <div v-if="showOutput" class="output-panel">
+        <div class="output-header">
+          <span class="output-title">Output</span>
+          <button class="output-close" @click="showOutput = false">
+            &times;
+          </button>
+        </div>
+        <div class="output-body">
+          <div v-if="isRunning" class="output-loading">
+            <span class="spinner"></span> Running tests...
+          </div>
+          <div v-else-if="runError" class="output-error">{{ runError }}</div>
+          <template v-else>
+            <div
+              v-for="r in runResults"
+              :key="r.test_id"
+              class="test-result"
+              :class="r.passed ? 'passed' : 'failed'"
+            >
+              <span class="test-result-icon">{{
+                r.passed ? "\u2713" : "\u2717"
+              }}</span>
+              <span class="test-result-label">Test {{ r.test_id }}</span>
+              <pre
+                v-if="r.output || r.error"
+                class="test-result-output"
+              >{{ r.output || r.error }}</pre>
+            </div>
+          </template>
+        </div>
       </div>
     </div>
   </div>
@@ -610,6 +714,137 @@ body {
 }
 .light-mode .left-panel {
   scrollbar-color: #c0c0c0 #f0f0f0;
+}
+
+.run-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 4px 14px;
+  margin-right: 4px;
+  background: #007acc;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+  height: 26px;
+  border-radius: 3px;
+}
+.run-button:hover:not(:disabled) {
+  background: #0098ff;
+}
+.run-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.output-panel {
+  height: 200px;
+  max-height: 40%;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border, #333);
+  background: var(--bg2, #1a1a1a);
+  display: flex;
+  flex-direction: column;
+}
+.output-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  padding: 0 12px;
+  background: var(--bg3, #252526);
+  border-bottom: 1px solid var(--border, #333);
+  flex-shrink: 0;
+}
+.output-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg2, #ccc);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.output-close {
+  background: none;
+  border: none;
+  color: var(--fg2, #888);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.output-close:hover {
+  color: var(--fg, #fff);
+}
+.output-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  font-family: "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+.output-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg2, #ccc);
+}
+.output-loading .spinner {
+  border-color: rgba(255, 255, 255, 0.15);
+  border-top-color: var(--fg2, #ccc);
+}
+.output-error {
+  color: #ff375f;
+}
+.test-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  flex-wrap: wrap;
+}
+.test-result + .test-result {
+  border-top: 1px solid var(--border, #333);
+}
+.test-result-icon {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.test-result.passed .test-result-icon {
+  color: #00b8a3;
+}
+.test-result.failed .test-result-icon {
+  color: #ff375f;
+}
+.test-result-label {
+  color: var(--fg2, #ccc);
+  flex-shrink: 0;
+}
+.test-result-output {
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 8px;
+  background: var(--code-bg, #262626);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--fg2, #ccc);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
 }
 
 @media (max-width: 768px) {
