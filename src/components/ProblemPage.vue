@@ -2,18 +2,21 @@
 import { computed, ref, onMounted, onUnmounted } from "vue";
 import { marked } from "marked";
 import TopBar from "./TopBar.vue";
-import { darkModernTheme, lightModernTheme, enhancePythonTokenizer } from "../composables/darkModernTheme";
+import {
+  darkModernTheme,
+  lightModernTheme,
+  enhancePythonTokenizer,
+} from "../composables/darkModernTheme";
 
 // Kick off heavy imports immediately (don't wait for onMounted)
-const monacoPromise = typeof window !== "undefined"
-  ? import("monaco-editor")
-  : null;
-const workerPromise = typeof window !== "undefined"
-  ? import("monaco-editor/esm/vs/editor/editor.worker?worker")
-  : null;
-const tyPromise = typeof window !== "undefined"
-  ? import("../composables/useTyChecker")
-  : null;
+const monacoPromise =
+  typeof window !== "undefined" ? import("monaco-editor") : null;
+const workerPromise =
+  typeof window !== "undefined"
+    ? import("monaco-editor/esm/vs/editor/editor.worker?worker")
+    : null;
+const tyPromise =
+  typeof window !== "undefined" ? import("../composables/useTyChecker") : null;
 
 interface TestCase {
   id: number;
@@ -70,8 +73,8 @@ function testFileContent(tc: TestCase, i: number): string {
     `result = ${fnName}(${extractArgs(tc.input)})`,
     `expected = ${tc.expected_output}`,
     "",
-    "assert torch.equal(result, expected), f\"Expected {expected}, got {result}\"",
-    "print(\"Test " + (i + 1) + " passed!\")",
+    'assert torch.equal(result, expected), f"Expected {expected}, got {result}"',
+    'print("Test ' + (i + 1) + ' passed!")',
   ];
   return lines.join("\n");
 }
@@ -81,7 +84,9 @@ function extractArgs(input: string): string {
   return assignments.map((l) => l.split("=")[0].trim()).join(", ");
 }
 
-function forceTokenizeAll(editor: import("monaco-editor").editor.IStandaloneCodeEditor) {
+function forceTokenizeAll(
+  editor: import("monaco-editor").editor.IStandaloneCodeEditor,
+) {
   const model = editor.getModel() as any;
   if (model?.tokenization?.forceTokenization) {
     model.tokenization.forceTokenization(model.getLineCount());
@@ -123,19 +128,28 @@ function toggleTheme() {
     localStorage.setItem("editor-theme", newDark ? "dark" : "light");
     // Re-colorize all code blocks with new theme
     if (leftPanelEl.value) {
-      for (const el of leftPanelEl.value.querySelectorAll<HTMLElement>("pre code")) {
+      for (const el of leftPanelEl.value.querySelectorAll<HTMLElement>(
+        "pre code",
+      )) {
         monacoRef!.editor.colorizeElement(el, { theme });
       }
     }
     const s = document.documentElement.style;
     if (newDark) {
-      s.removeProperty("--bg"); s.removeProperty("--bg2"); s.removeProperty("--bg3");
-      s.removeProperty("--fg"); s.removeProperty("--fg2"); s.removeProperty("--border");
+      s.removeProperty("--bg");
+      s.removeProperty("--bg2");
+      s.removeProperty("--bg3");
+      s.removeProperty("--fg");
+      s.removeProperty("--fg2");
+      s.removeProperty("--border");
       s.removeProperty("--code-bg");
     } else {
-      s.setProperty("--bg", "#fff"); s.setProperty("--bg2", "#f5f5f5");
-      s.setProperty("--bg3", "#e8e8e8"); s.setProperty("--fg", "#1e1e1e");
-      s.setProperty("--fg2", "#333"); s.setProperty("--border", "#ccc");
+      s.setProperty("--bg", "#fff");
+      s.setProperty("--bg2", "#f5f5f5");
+      s.setProperty("--bg3", "#e8e8e8");
+      s.setProperty("--fg", "#1e1e1e");
+      s.setProperty("--fg2", "#333");
+      s.setProperty("--border", "#ccc");
       s.setProperty("--code-bg", "#f0f0f0");
     }
   };
@@ -173,7 +187,10 @@ function toggleTheme() {
 
 onMounted(async () => {
   // Await pre-started imports (fired at module scope, not here)
-  const [monaco, editorWorker] = await Promise.all([monacoPromise!, workerPromise!]);
+  const [monaco, editorWorker] = await Promise.all([
+    monacoPromise!,
+    workerPromise!,
+  ]);
 
   monacoRef = monaco;
   self.MonacoEnvironment = {
@@ -186,7 +203,7 @@ onMounted(async () => {
   if (!editorEl.value) return;
 
   editorReady.value = true;
-  const editor = editorInstance = monaco.editor.create(editorEl.value, {
+  const editor = (editorInstance = monaco.editor.create(editorEl.value, {
     value: props.problem.starter_code,
     language: "python",
     theme: isDark.value ? "learntensors-dark" : "learntensors-light",
@@ -204,53 +221,8 @@ onMounted(async () => {
     cursorBlinking: "smooth",
     smoothScrolling: true,
     "semanticHighlighting.enabled": true,
-    acceptSuggestionOnEnter: "off",
-  });
+  }));
   forceTokenizeAll(editor);
-
-  // Workaround for vscode's built-in browser (BrowserView) which intercepts
-  // Enter and Option+Arrow keydown events before they reach web content.
-  // See https://github.com/microsoft/vscode/pull/303799
-  editor.addCommand(monaco.KeyCode.Enter, () => {
-    editor.trigger("keyboard", "type", { text: "\n" });
-  });
-
-  // Option+Arrow arrives as a corrupted keydown (empty key/code/keyCode)
-  // because BrowserView's before-input-event preventDefault's it. The keyup
-  // correctly reports the arrow key, so we count broken keydowns and fire
-  // the appropriate word-navigation command on keyup.
-  const editorDom = editor.getDomNode();
-  const textarea = editorDom?.querySelector<HTMLTextAreaElement>("textarea.inputarea");
-  if (textarea) {
-    let brokenAltKeydowns = 0;
-    let shiftHeld = false;
-
-    textarea.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.altKey && e.key === "" && e.code === "" && e.keyCode === 0) {
-        brokenAltKeydowns++;
-        shiftHeld = e.shiftKey;
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }, true);
-
-    textarea.addEventListener("keyup", (e: KeyboardEvent) => {
-      if (brokenAltKeydowns > 0 && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
-        const isLeft = e.key === "ArrowLeft";
-        const command = shiftHeld
-          ? (isLeft ? "cursorWordLeftSelect" : "cursorWordRightSelect")
-          : (isLeft ? "cursorWordLeft" : "cursorWordRight");
-        for (let i = 0; i < brokenAltKeydowns; i++) {
-          editor.trigger("keyboard", command, {});
-        }
-        brokenAltKeydowns = 0;
-        e.preventDefault();
-        e.stopPropagation();
-      } else {
-        brokenAltKeydowns = 0;
-      }
-    }, true);
-  }
 
   // Initialize ty type checker — fire-and-forget (diagnostics/hover/completions, not visual)
   void (async () => {
@@ -273,7 +245,9 @@ onMounted(async () => {
       const lang = el.className.match(/language-(\w+)/)?.[1] || "python";
       el.setAttribute("data-lang", lang);
       el.textContent = el.textContent?.replace(/\n$/, "") ?? "";
-      await monaco.editor.colorizeElement(el, { theme: isDark.value ? "learntensors-dark" : "learntensors-light" });
+      await monaco.editor.colorizeElement(el, {
+        theme: isDark.value ? "learntensors-dark" : "learntensors-light",
+      });
     }
   }
 });
@@ -318,7 +292,9 @@ onUnmounted(() => {
           class="editor-tab"
           :class="{ active: activeTab === tab.id }"
           @click="switchTab(tab.id)"
-        >{{ tab.label }}</div>
+        >
+          {{ tab.label }}
+        </div>
       </div>
       <div class="editor-container">
         <pre
@@ -336,15 +312,39 @@ onUnmounted(() => {
           :title="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
           @click="toggleTheme"
         >
-          <svg v-if="isDark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          <svg
+            v-if="isDark"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
           </svg>
-          <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          <svg
+            v-else
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
           </svg>
         </button>
       </div>
@@ -429,7 +429,10 @@ body {
   align-items: center;
   justify-content: center;
   opacity: 0.5;
-  transition: opacity 0.2s, background 0.2s, border-color 0.2s;
+  transition:
+    opacity 0.2s,
+    background 0.2s,
+    border-color 0.2s;
 }
 .theme-toggle:hover {
   opacity: 1;
