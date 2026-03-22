@@ -1,4 +1,4 @@
-INSERT OR IGNORE INTO problems (name, slug, description, starter_code, difficulty) VALUES (
+INSERT OR IGNORE INTO problems (name, slug, description, starter_code, difficulty, correct_code) VALUES (
   'Matrix Multiplication',
   'matrix-multiplication',
   'Write a function that takes two 2D tensors (matrices) as input and returns their matrix product.
@@ -26,7 +26,11 @@ b = [[5, 6],
 
 def matrix_multiply(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     pass',
-  'Easy'
+  'Easy',
+  'import torch
+
+def matrix_multiply(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    return a @ b'
 );
 
 INSERT OR IGNORE INTO test_cases (id, problem_id, input, expected_output) VALUES
@@ -65,7 +69,7 @@ expected = torch.tensor([[20]])
 assert torch.equal(result, expected), f"Expected {expected}, got {result}"
 print("Test 3 passed!")', 'tensor([[20]])');
 
-INSERT OR IGNORE INTO problems (id, name, slug, description, starter_code, difficulty) VALUES (
+INSERT OR IGNORE INTO problems (id, name, slug, description, starter_code, difficulty, correct_code) VALUES (
   2,
   'Linear Layer',
   'linear-layer',
@@ -96,7 +100,11 @@ bias = [0.1, -0.2]
 
 def linear(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
     pass',
-  'Medium'
+  'Medium',
+  'import torch
+
+def linear(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
+    return x @ weight.T + bias'
 );
 
 INSERT OR IGNORE INTO test_cases (id, problem_id, input, expected_output) VALUES
