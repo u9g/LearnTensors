@@ -76,6 +76,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params, request })
     a{color:inherit;text-decoration:none}
     .top-bar{background-color:var(--bg3);height:50px;padding:0 20px;width:100%;display:flex;align-items:center;flex-shrink:0}
     .top-bar-logo{font-family:'Skarpa',sans-serif;font-size:24px;color:var(--fg);letter-spacing:2px;text-decoration:none}
+    .top-bar-nav{margin-left:auto}
+    .top-bar-link{font-family:'Skarpa',sans-serif;color:#a0a0a0;font-size:16px;letter-spacing:1px;text-decoration:none}
+    .top-bar-link:hover{color:var(--fg)}
     .layout{display:flex;height:calc(100vh - 50px)}
     .left-panel{width:40%;min-width:0;overflow-y:auto;padding:24px;border-right:1px solid var(--border);background:var(--bg2)}
     .right-panel{flex:1;display:flex;flex-direction:column;background:var(--bg);min-width:0}

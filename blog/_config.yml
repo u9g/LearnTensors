@@ -1,7 +1,0 @@
-title: LearnTensors Engineering Blog
-description: Technical deep dives from the LearnTensors team
-baseurl: /LearnTensors
-url: https://u9g.github.io
-markdown: kramdown
-theme: minima
-permalink: /blog/:year/:month/:day/:title/

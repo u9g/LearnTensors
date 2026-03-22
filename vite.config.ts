@@ -42,14 +42,17 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         'problem-page': resolve(__dirname, 'src/entry-client-problem.ts'),
+        blog: resolve(__dirname, 'blog.html'),
       },
       output: {
         entryFileNames: (chunk) => {
           if (chunk.name === 'problem-page') return 'assets/problem-page.js'
+          if (chunk.name === 'blog') return 'assets/blog.js'
           return 'assets/[name]-[hash].js'
         },
         assetFileNames: (asset) => {
           if (asset.names?.includes('problem-page.css')) return 'assets/problem-page.css'
+          if (asset.names?.includes('blog.css')) return 'assets/blog.css'
           return 'assets/[name]-[hash][extname]'
         },
       },
