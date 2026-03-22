@@ -69,3 +69,29 @@ const posts = [
   color: #58a6ff;
 }
 </style>
+
+<style>
+.light-mode .blog {
+  background-color: #fff;
+}
+
+.light-mode .blog-heading {
+  color: #1e1e1e;
+}
+
+.light-mode .post-item {
+  border-bottom-color: #ddd;
+}
+
+.light-mode .post-date {
+  color: #666;
+}
+
+.light-mode .post-title {
+  color: #1e1e1e;
+}
+
+.light-mode .post-title:hover {
+  color: #0969da;
+}
+</style>

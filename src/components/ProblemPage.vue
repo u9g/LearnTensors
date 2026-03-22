@@ -45,7 +45,6 @@ const runResults = ref<
   Array<{ test_id: number; passed: boolean; output: string; error: string }>
 >([]);
 const runError = ref<string | null>(null);
-const themeToggleEl = ref<HTMLElement | null>(null);
 
 let editorInstance: any = null;
 
@@ -102,71 +101,6 @@ async function runCode() {
   }
 }
 
-function toggleTheme() {
-  const btn = themeToggleEl.value;
-  const monaco = monacoRef.value;
-  if (!btn || !monaco) return;
-
-  const newDark = !isDark.value;
-  const apply = () => {
-    isDark.value = newDark;
-    const theme = newDark ? "learntensors-dark" : "learntensors-light";
-    monaco.editor.setTheme(theme);
-    localStorage.setItem("editor-theme", newDark ? "dark" : "light");
-
-    const s = document.documentElement.style;
-    if (newDark) {
-      document.documentElement.classList.remove("light-mode");
-      s.removeProperty("--bg");
-      s.removeProperty("--bg2");
-      s.removeProperty("--bg3");
-      s.removeProperty("--fg");
-      s.removeProperty("--fg2");
-      s.removeProperty("--border");
-      s.removeProperty("--code-bg");
-    } else {
-      document.documentElement.classList.add("light-mode");
-      s.setProperty("--bg", "#fff");
-      s.setProperty("--bg2", "#f5f5f5");
-      s.setProperty("--bg3", "#e8e8e8");
-      s.setProperty("--fg", "#1e1e1e");
-      s.setProperty("--fg2", "#333");
-      s.setProperty("--border", "#ccc");
-      s.setProperty("--code-bg", "#f0f0f0");
-    }
-  };
-
-  if (!document.startViewTransition) {
-    apply();
-    return;
-  }
-
-  const rect = btn.getBoundingClientRect();
-  const x = rect.left + rect.width / 2;
-  const y = rect.top + rect.height / 2;
-  const endRadius = Math.hypot(
-    Math.max(x, window.innerWidth - x),
-    Math.max(y, window.innerHeight - y),
-  );
-
-  const transition = document.startViewTransition(apply);
-  transition.ready.then(() => {
-    document.documentElement.animate(
-      {
-        clipPath: [
-          `circle(0px at ${x}px ${y}px)`,
-          `circle(${endRadius}px at ${x}px ${y}px)`,
-        ],
-      },
-      {
-        duration: 400,
-        easing: "ease-in-out",
-        pseudoElement: "::view-transition-new(root)",
-      },
-    );
-  });
-}
-
 // Provide everything to child panels
 provide("problem", props.problem);
 provide("solutionCode", solutionCode);
@@ -179,8 +113,6 @@ provide("showOutput", showOutput);
 provide("runResults", runResults);
 provide("runError", runError);
 provide("runCode", runCode);
-provide("toggleTheme", toggleTheme);
-provide("themeToggleEl", themeToggleEl);
 provide("setEditorInstance", setEditorInstance);
 provide("setTyChecker", setTyChecker);
 provide("moveTab", moveTab);
@@ -316,17 +248,6 @@ body {
   opacity: 1;
   background: #3a3a3a;
   border-color: #888;
-}
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-::view-transition-old(root) {
-  z-index: 1;
-}
-::view-transition-new(root) {
-  z-index: 9999;
 }
 .editor-container {
   flex: 1;

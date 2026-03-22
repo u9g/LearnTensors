@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, onUnmounted } from "vue";
 import {
   darkModernTheme,
+  lightModernTheme,
   enhancePythonTokenizer,
 } from "../composables/darkModernTheme";
 
 defineProps<{ slug: string }>();
 
-// Dark Modern color map for Monarch token types
-const tokenColors: Record<string, string> = {
+const darkTokenColors: Record<string, string> = {
   "keyword": "#569cd6",
   "string": "#ce9178",
   "string.escape": "#d7ba7d",
@@ -28,14 +28,35 @@ const tokenColors: Record<string, string> = {
   "identifier": "#9cdcfe",
   "regexp": "#d16969",
 };
-const defaultFg = "#cccccc";
+
+const lightTokenColors: Record<string, string> = {
+  "keyword": "#0000ff",
+  "string": "#a31515",
+  "string.escape": "#ee0000",
+  "number": "#098658",
+  "number.hex": "#098658",
+  "comment": "#008000",
+  "delimiter": "#000000",
+  "delimiter.curly": "#000000",
+  "delimiter.bracket": "#000000",
+  "delimiter.parenthesis": "#000000",
+  "operator": "#000000",
+  "predefined": "#795e26",
+  "function": "#795e26",
+  "tag": "#795e26",
+  "type": "#267f99",
+  "type.identifier": "#267f99",
+  "identifier": "#001080",
+  "regexp": "#811f3f",
+};
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // VS Code bracket pair colorization colors
-const bracketColors = ["#ffd700", "#da70d6", "#179fff"];
+const darkBracketColors = ["#ffd700", "#da70d6", "#179fff"];
+const lightBracketColors = ["#0431fa", "#319331", "#7b3814"];
 const typeKeywords = new Set(["string", "number", "boolean", "any", "void", "never", "null", "undefined", "object", "unknown", "bigint", "symbol"]);
 const openBrackets: Record<string, string> = { "(": ")", "[": "]", "{": "}" };
 const closeBrackets = new Set([")", "]", "}"]);
@@ -44,6 +65,9 @@ function colorizeBlock(
   code: string,
   lang: string,
   monaco: typeof import("monaco-editor"),
+  tokenColors: Record<string, string>,
+  defaultFg: string,
+  bracketColors: string[],
 ): string {
   const lines = code.split("\n");
   const tokenized = monaco.editor.tokenize(code, lang);
@@ -115,6 +139,8 @@ function colorizeBlock(
   return htmlLines.join("\n");
 }
 
+let observer: MutationObserver | null = null;
+
 onMounted(async () => {
   try {
     const [monaco, editorWorker] = await Promise.all([
@@ -127,26 +153,48 @@ onMounted(async () => {
     };
 
     monaco.editor.defineTheme("dark-modern", darkModernTheme as any);
-    monaco.editor.setTheme("dark-modern");
+    monaco.editor.defineTheme("light-modern", lightModernTheme as any);
     enhancePythonTokenizer(monaco);
 
-    // Wait for TypeScript language to be ready before tokenizing
-    // colorize() internally waits for the tokenizer; we use it once to prime it
     await monaco.editor.colorize("x", "typescript", { tabSize: 2 });
     await monaco.editor.colorize("x", "javascript", { tabSize: 2 });
 
-    const blocks = document.querySelectorAll<HTMLElement>("article pre > code");
-    for (const block of blocks) {
-      if (!block.dataset.original) {
-        block.dataset.original = block.textContent ?? "";
+    function colorizeAll() {
+      const isDark = !document.documentElement.classList.contains("light-mode");
+      monaco.editor.setTheme(isDark ? "dark-modern" : "light-modern");
+      const tokenColors = isDark ? darkTokenColors : lightTokenColors;
+      const defaultFg = isDark ? "#cccccc" : "#3b3b3b";
+      const bracketColors = isDark ? darkBracketColors : lightBracketColors;
+
+      const blocks = document.querySelectorAll<HTMLElement>("article pre > code");
+      for (const block of blocks) {
+        if (!block.dataset.original) {
+          block.dataset.original = block.textContent ?? "";
+        }
+        const text = block.dataset.original;
+        const lang = block.dataset.lang ?? "typescript";
+        block.innerHTML = colorizeBlock(text, lang, monaco, tokenColors, defaultFg, bracketColors);
       }
-      const text = block.dataset.original;
-      const lang = block.dataset.lang ?? "typescript";
-      block.innerHTML = colorizeBlock(text, lang, monaco);
     }
+
+    colorizeAll();
+
+    observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.attributeName === "class") {
+          colorizeAll();
+          break;
+        }
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true });
   } catch (e) {
     console.error("blog colorize failed:", e);
   }
+});
+
+onUnmounted(() => {
+  observer?.disconnect();
 });
 </script>
 
@@ -537,5 +585,75 @@ article a:hover {
 article em {
   font-style: italic;
   color: #c9c9c9;
+}
+</style>
+
+<style>
+.light-mode .blog {
+  background-color: #fff;
+}
+
+.light-mode .blog-content {
+  color: #333;
+}
+
+.light-mode .back a {
+  color: #666;
+}
+
+.light-mode .back a:hover {
+  color: #1e1e1e;
+}
+
+.light-mode article h1 {
+  color: #1e1e1e;
+}
+
+.light-mode .meta {
+  color: #666;
+}
+
+.light-mode article h2 {
+  color: #1e1e1e;
+}
+
+.light-mode article h3 {
+  color: #1e1e1e;
+}
+
+.light-mode article code {
+  background: #f0f0f0;
+  color: #1e1e1e;
+}
+
+.light-mode article pre {
+  background: #f8f8f8;
+  border-color: #ddd;
+}
+
+.light-mode article pre code {
+  background: none;
+}
+
+.light-mode article th {
+  background: #f0f0f0;
+  color: #1e1e1e;
+}
+
+.light-mode article th,
+.light-mode article td {
+  border-color: #ddd;
+}
+
+.light-mode article strong {
+  color: #1e1e1e;
+}
+
+.light-mode article a {
+  color: #0969da;
+}
+
+.light-mode article em {
+  color: #555;
 }
 </style>

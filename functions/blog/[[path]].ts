@@ -65,10 +65,58 @@ export const onRequestGet: PagesFunction = async ({ request }) => {
     a{color:inherit;text-decoration:none}
     .top-bar{background-color:#262626;height:50px;padding:0 20px;width:100%;display:flex;align-items:center;flex-shrink:0}
     .top-bar-logo{font-family:'Skarpa',sans-serif;font-size:24px;color:#f5f5f5;letter-spacing:2px;text-decoration:none}
-    .top-bar-nav{margin-left:auto}
+    .top-bar-center{flex:1;display:flex;justify-content:center}
+    .top-bar-nav{display:flex;align-items:center;gap:16px}
+    .top-bar-theme-toggle{background:none;border:none;color:#a0a0a0;cursor:pointer;padding:4px;display:flex;align-items:center}
     .top-bar-link{font-family:'Skarpa',sans-serif;color:#a0a0a0;font-size:16px;letter-spacing:1px;text-decoration:none}
     .top-bar-link:hover{color:#f5f5f5}
+    .blog{background-color:#1a1a1a;min-height:calc(100vh - 50px);padding:0}
+    .blog-content{width:100%;max-width:800px;margin:0 auto;padding:32px 16px;color:#d4d4d4}
+    .blog-heading{color:#f5f5f5;font-size:24px;margin-bottom:24px}
+    .post-item{display:flex;flex-direction:column;padding:12px 0;border-bottom:1px solid #333}
+    .post-date{color:#888;font-size:13px}
+    .post-title{color:#f5f5f5;text-decoration:none;font-size:16px;margin-top:2px}
+    .back{margin-bottom:24px}
+    .back a{color:#888;text-decoration:none;font-size:14px}
+    article h1{color:#f5f5f5;font-size:28px;margin-bottom:4px}
+    .meta{color:#888;font-size:14px;margin-bottom:32px}
+    article h2{color:#f5f5f5;font-size:22px;margin:32px 0 12px}
+    article h3{color:#f5f5f5;font-size:17px;margin:24px 0 8px}
+    article p{margin-bottom:16px;line-height:1.7}
+    article code{font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;background:#2d2d2d;padding:2px 6px;border-radius:4px;font-size:85%;color:#e6e6e6}
+    article pre{background:#1e1e1e;border:1px solid #333;border-radius:6px;padding:16px;overflow-x:auto;margin-bottom:16px;line-height:1.5}
+    article pre code{background:none;padding:0;font-size:14px}
+    article table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    article th,article td{border:1px solid #333;padding:8px 12px;text-align:left;font-size:14px}
+    article th{background:#2d2d2d;color:#f5f5f5}
+    article ul{margin-bottom:16px;padding-left:24px}
+    article li{margin-bottom:6px;line-height:1.7}
+    article strong{color:#f5f5f5}
+    article a{color:#58a6ff;text-decoration:none}
+    article em{font-style:italic;color:#c9c9c9}
+    .light-mode body,.light-mode .blog{background-color:#fff}
+    .light-mode .top-bar{background-color:#f5f5f5;border-bottom:1px solid #ddd}
+    .light-mode .top-bar-logo{color:#1e1e1e}
+    .light-mode .top-bar-theme-toggle{color:#666}
+    .light-mode .top-bar-link{color:#666}
+    .light-mode .blog-content{color:#333}
+    .light-mode .blog-heading{color:#1e1e1e}
+    .light-mode .post-item{border-bottom-color:#ddd}
+    .light-mode .post-date{color:#666}
+    .light-mode .post-title{color:#1e1e1e}
+    .light-mode .back a{color:#666}
+    .light-mode article h1,.light-mode article h2,.light-mode article h3{color:#1e1e1e}
+    .light-mode .meta{color:#666}
+    .light-mode article code{background:#f0f0f0;color:#1e1e1e}
+    .light-mode article pre{background:#f8f8f8;border-color:#ddd}
+    .light-mode article pre code{background:none}
+    .light-mode article th{background:#f0f0f0;color:#1e1e1e}
+    .light-mode article th,.light-mode article td{border-color:#ddd}
+    .light-mode article strong{color:#1e1e1e}
+    .light-mode article a{color:#0969da}
+    .light-mode article em{color:#555}
   </style>
+  <script>if(localStorage.getItem('editor-theme')==='light'){document.documentElement.classList.add('light-mode')}<\/script>
 </head>
 <body>
   <div id="app">${appHtml}</div>

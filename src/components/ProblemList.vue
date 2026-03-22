@@ -131,3 +131,34 @@ onMounted(async () => {
   color: #f5c518;
 }
 </style>
+
+<style>
+.light-mode .problem-list {
+  background-color: #fff;
+}
+
+.light-mode .problem-link {
+  color: #1e1e1e;
+}
+
+.light-mode .problem-link:hover {
+  color: #0969da;
+}
+
+.light-mode .difficulty.easy {
+  color: #00896e;
+}
+
+.light-mode .difficulty.medium {
+  color: #c59000;
+}
+
+.light-mode .difficulty.hard {
+  color: #d1243b;
+}
+
+.light-mode .star-btn:hover {
+  background-color: #e8e8e8;
+  color: #1e1e1e;
+}
+</style>
