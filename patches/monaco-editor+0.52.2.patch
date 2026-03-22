@@ -1,0 +1,15 @@
+diff --git a/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js b/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js
+index af9ac92..9185bff 100644
+--- a/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js
++++ b/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js
+@@ -95,8 +95,8 @@ DocumentSemanticTokensFeature = __decorate([
+ export { DocumentSemanticTokensFeature };
+ let ModelSemanticColoring = class ModelSemanticColoring extends Disposable {
+     static { ModelSemanticColoring_1 = this; }
+-    static { this.REQUEST_MIN_DELAY = 300; }
+-    static { this.REQUEST_MAX_DELAY = 2000; }
++    static { this.REQUEST_MIN_DELAY = 25; }
++    static { this.REQUEST_MAX_DELAY = 100; }
+     constructor(model, _semanticTokensStylingService, themeService, languageFeatureDebounceService, languageFeaturesService) {
+         super();
+         this._semanticTokensStylingService = _semanticTokensStylingService;

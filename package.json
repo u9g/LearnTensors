@@ -7,7 +7,8 @@
     "build:ty-wasm": "bash scripts/build-ty-wasm.sh",
     "dev": "rm -rf .wrangler && vite build --ssr src/entry-server.ts --outDir dist/server && echo y | wrangler d1 migrations apply learntensors-db --local && wrangler d1 execute learntensors-db --local --file=seed.sql && stmux -- [ [ \"vite --port 5173\" .. \"wrangler pages dev --proxy=5173 --compatibility-date=2024-01-01\" ] : \"sh dev-url.sh\" ]",
     "build": "npm run build:ty-wasm && vue-tsc -b && vite build && vite build --ssr src/entry-server.ts --outDir dist/server",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@vue/server-renderer": "^3.5.30",
@@ -19,6 +20,7 @@
     "@types/node": "^24.12.0",
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/tsconfig": "^0.9.0",
+    "patch-package": "^8.0.1",
     "stmux": "^1.8.6",
     "typescript": "~5.9.3",
     "vite": "^8.0.1",
