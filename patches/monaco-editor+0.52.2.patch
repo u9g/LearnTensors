@@ -1,3 +1,16 @@
+diff --git a/node_modules/monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsController.js b/node_modules/monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsController.js
+index ebc9d1a..9814a59 100644
+--- a/node_modules/monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsController.js
++++ b/node_modules/monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsController.js
+@@ -224,7 +224,7 @@ let InlayHintsController = class InlayHintsController {
+         this._sessionDisposables.add(this._editor.onDidChangeModelContent((e) => {
+             cts?.cancel();
+             // update less aggressive when typing
+-            const delay = Math.max(scheduler.delay, 1250);
++            const delay = Math.max(scheduler.delay, 25);
+             scheduler.schedule(delay);
+         }));
+         // mouse gestures
 diff --git a/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js b/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js
 index af9ac92..9185bff 100644
 --- a/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js
