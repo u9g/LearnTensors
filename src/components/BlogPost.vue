@@ -7,6 +7,68 @@ import {
 
 defineProps<{ slug: string }>();
 
+// Dark Modern color map for Monarch token types
+const tokenColors: Record<string, string> = {
+  "keyword": "#569cd6",
+  "string": "#ce9178",
+  "string.escape": "#d7ba7d",
+  "number": "#b5cea8",
+  "number.hex": "#b5cea8",
+  "comment": "#6a9955",
+  "delimiter": "#d4d4d4",
+  "delimiter.curly": "#d4d4d4",
+  "delimiter.bracket": "#d4d4d4",
+  "delimiter.parenthesis": "#d4d4d4",
+  "operator": "#d4d4d4",
+  "predefined": "#dcdcaa",
+  "tag": "#dcdcaa",
+  "type": "#4ec9b0",
+  "type.identifier": "#4ec9b0",
+  "identifier": "#9cdcfe",
+  "regexp": "#d16969",
+};
+const defaultFg = "#cccccc";
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function colorizeBlock(
+  code: string,
+  lang: string,
+  monaco: typeof import("monaco-editor"),
+): string {
+  const lines = code.split("\n");
+  const tokenized = monaco.editor.tokenize(code, lang);
+  const htmlLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const tokens = tokenized[i] || [];
+    if (line.length === 0) {
+      htmlLines.push("");
+      continue;
+    }
+
+    let lineHtml = "";
+    for (let t = 0; t < tokens.length; t++) {
+      const offset = tokens[t].offset;
+      const nextOffset = t + 1 < tokens.length ? tokens[t + 1].offset : line.length;
+      const text = line.slice(offset, nextOffset);
+      if (text.length === 0) continue;
+
+      // Strip language suffix (e.g. "keyword.ts" → "keyword")
+      const rawType = tokens[t].type;
+      const stripped = rawType.replace(/\.\w+$/, "");
+      const color = tokenColors[rawType] ?? tokenColors[stripped] ?? defaultFg;
+      lineHtml += `<span style="color:${color};">${escapeHtml(text)}</span>`;
+    }
+    htmlLines.push(lineHtml);
+  }
+
+  return htmlLines.join("\n");
+}
+
 onMounted(async () => {
   const [monaco, editorWorker] = await Promise.all([
     import("monaco-editor"),
@@ -25,8 +87,7 @@ onMounted(async () => {
   for (const block of blocks) {
     const text = block.textContent ?? "";
     const lang = block.dataset.lang ?? "typescript";
-    const html = await monaco.editor.colorize(text, lang, { tabSize: 2 });
-    block.innerHTML = html;
+    block.innerHTML = colorizeBlock(text, lang, monaco);
   }
 });
 </script>
