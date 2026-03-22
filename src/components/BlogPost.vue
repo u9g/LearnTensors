@@ -34,6 +34,12 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// VS Code bracket pair colorization colors
+const bracketColors = ["#ffd700", "#da70d6", "#179fff"];
+const typeKeywords = new Set(["string", "number", "boolean", "any", "void", "never", "null", "undefined", "object", "unknown", "bigint", "symbol"]);
+const openBrackets: Record<string, string> = { "(": ")", "[": "]", "{": "}" };
+const closeBrackets = new Set([")", "]", "}"]);
+
 function colorizeBlock(
   code: string,
   lang: string,
@@ -42,6 +48,9 @@ function colorizeBlock(
   const lines = code.split("\n");
   const tokenized = monaco.editor.tokenize(code, lang);
   const htmlLines: string[] = [];
+  let bracketDepth = 0;
+  let prevStripped = "";
+  let prevText = "";
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -66,6 +75,37 @@ function colorizeBlock(
       if (stripped === "identifier" && t + 1 < tokens.length) {
         const nextText = line.slice(tokens[t + 1].offset, t + 2 < tokens.length ? tokens[t + 2].offset : line.length);
         if (nextText.startsWith("(")) rawType = "function";
+      }
+
+      // Color type keywords teal when they follow ":" (type annotation position)
+      if (stripped === "keyword" && typeKeywords.has(text) && prevText === ":") {
+        rawType = "type";
+      }
+
+      if (stripped !== "" && text.trim()) {
+        prevStripped = stripped;
+        prevText = text;
+      }
+
+      // Bracket pair colorization
+      if (stripped.startsWith("delimiter")) {
+        let bracketHtml = "";
+        for (const ch of text) {
+          if (ch in openBrackets) {
+            const color = bracketColors[bracketDepth % bracketColors.length];
+            bracketHtml += `<span style="color:${color};">${ch}</span>`;
+            bracketDepth++;
+          } else if (closeBrackets.has(ch)) {
+            bracketDepth = Math.max(0, bracketDepth - 1);
+            const color = bracketColors[bracketDepth % bracketColors.length];
+            bracketHtml += `<span style="color:${color};">${ch}</span>`;
+          } else {
+            const color = tokenColors[rawType] ?? tokenColors[stripped] ?? defaultFg;
+            bracketHtml += `<span style="color:${color};">${escapeHtml(ch)}</span>`;
+          }
+        }
+        lineHtml += bracketHtml;
+        continue;
       }
 
       const color = tokenColors[rawType] ?? tokenColors[stripped] ?? defaultFg;
