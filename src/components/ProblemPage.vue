@@ -47,7 +47,7 @@ const renderedDescription = computed(() => {
 const editorEl = ref<HTMLElement | null>(null);
 const leftPanelEl = ref<HTMLElement | null>(null);
 const editorReady = ref(false);
-let tyCleanup: (() => void) | null = null;
+let tyChecker: import("../composables/useTyChecker").TyChecker | null = null;
 
 const activeTab = ref("solution");
 let editorInstance: any = null;
@@ -60,29 +60,6 @@ const tabs = computed(() => {
   });
   return t;
 });
-
-function testFileContent(tc: TestCase, i: number): string {
-  const fnMatch = props.problem.starter_code.match(/def\s+(\w+)/);
-  const fnName = fnMatch ? fnMatch[1] : "solve";
-  const lines = [
-    "import torch",
-    "from solution import " + fnName,
-    "",
-    "# Test " + (i + 1),
-    tc.input,
-    `result = ${fnName}(${extractArgs(tc.input)})`,
-    `expected = ${tc.expected_output}`,
-    "",
-    'assert torch.equal(result, expected), f"Expected {expected}, got {result}"',
-    'print("Test ' + (i + 1) + ' passed!")',
-  ];
-  return lines.join("\n");
-}
-
-function extractArgs(input: string): string {
-  const assignments = input.split("\n").filter((l) => l.match(/^\w+\s*=/));
-  return assignments.map((l) => l.split("=")[0].trim()).join(", ");
-}
 
 function forceTokenizeAll(
   editor: import("monaco-editor").editor.IStandaloneCodeEditor,
@@ -98,15 +75,19 @@ function switchTab(tabId: string) {
   // Save solution code when leaving solution tab
   if (activeTab.value === "solution") {
     solutionCode = editorInstance.getValue();
+    // Keep solution.py up to date in ty workspace for test imports
+    tyChecker?.updateSolution(solutionCode);
   }
   activeTab.value = tabId;
   if (tabId === "solution") {
+    tyChecker?.switchFile("solution.py", solutionCode);
     editorInstance.setValue(solutionCode);
     editorInstance.updateOptions({ readOnly: false });
   } else {
     const idx = parseInt(tabId.split("-")[1]) - 1;
     const tc = props.problem.test_cases[idx];
-    editorInstance.setValue(testFileContent(tc, idx));
+    tyChecker?.switchFile(`test_${idx + 1}.py`, tc.input);
+    editorInstance.setValue(tc.input);
     editorInstance.updateOptions({ readOnly: true });
   }
   forceTokenizeAll(editorInstance);
@@ -231,7 +212,7 @@ onMounted(async () => {
   void (async () => {
     try {
       const tyModule = await tyPromise!;
-      tyCleanup = await tyModule.initTyChecker(
+      tyChecker = await tyModule.initTyChecker(
         monaco,
         editor,
         props.problem.starter_code,
@@ -256,7 +237,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  tyCleanup?.();
+  tyChecker?.dispose();
 });
 </script>
 

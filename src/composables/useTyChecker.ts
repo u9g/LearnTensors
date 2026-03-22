@@ -2,6 +2,9 @@
  * Integrates Astral's ty Python type checker (via WASM) with Monaco editor.
  * Provides diagnostics, hover, completions, inlay hints, signature help,
  * and semantic tokens.
+ *
+ * Keeps solution.py always in the workspace so test files can
+ * `from solution import ...` and get full type checking.
  */
 import type {
   Workspace,
@@ -35,11 +38,19 @@ async function loadTy() {
   return tyPromise;
 }
 
+export interface TyChecker {
+  /** Switch the active file for providers. Opens the file if not already open. */
+  switchFile(name: string, content: string): void;
+  /** Update solution.py content (call when user edits on the solution tab) */
+  updateSolution(code: string): void;
+  dispose(): void;
+}
+
 export async function initTyChecker(
   monaco: any,
   editor: any,
   initialCode: string,
-) {
+): Promise<TyChecker> {
   const ty = await loadTy();
 
   const workspace: Workspace = new ty.Workspace(
@@ -52,9 +63,23 @@ export async function initTyChecker(
     workspace.openFile(path, content);
   }
 
-  const handle: FileHandle = workspace.openFile("solution.py", initialCode);
+  // solution.py is always open so test files can import from it
+  const solutionHandle: FileHandle = workspace.openFile(
+    "solution.py",
+    initialCode,
+  );
+
+  // Track open file handles (solution + any test files)
+  const handles = new Map<string, FileHandle>();
+  handles.set("solution.py", solutionHandle);
+
+  // Active file = the one the editor is showing
+  let activeHandle = solutionHandle;
+
   const model = editor.getModel();
-  if (!model) return () => {};
+  if (!model) {
+    return { switchFile() {}, updateSolution() {}, dispose() {} };
+  }
 
   const disposables: { dispose(): void }[] = [];
 
@@ -74,7 +99,7 @@ export async function initTyChecker(
   // --- Diagnostics ---
   function updateDiagnostics() {
     try {
-      const diagnostics = workspace.checkFile(handle);
+      const diagnostics = workspace.checkFile(activeHandle);
       const markers = diagnostics.map((d) => {
         const range = d.toRange(workspace);
         return {
@@ -94,8 +119,11 @@ export async function initTyChecker(
   }
 
   let debounceTimer: ReturnType<typeof setTimeout>;
+  let contentChangeEnabled = true;
+
   const contentDisposable = model.onDidChangeContent(() => {
-    workspace.updateFile(handle, model.getValue());
+    if (!contentChangeEnabled) return;
+    workspace.updateFile(activeHandle, model.getValue());
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(updateDiagnostics, 300);
   });
@@ -109,7 +137,7 @@ export async function initTyChecker(
       provideHover(_model: any, position: any) {
         try {
           const result = workspace.hover(
-            handle,
+            activeHandle,
             new ty.Position(position.lineNumber, position.column),
           );
           if (!result) return null;
@@ -136,7 +164,7 @@ export async function initTyChecker(
       provideCompletionItems(_model: any, position: any) {
         try {
           const completions = workspace.completions(
-            handle,
+            activeHandle,
             new ty.Position(position.lineNumber, position.column),
           );
           if (!completions || completions.length === 0)
@@ -170,7 +198,7 @@ export async function initTyChecker(
             new ty.Position(range.startLineNumber, range.startColumn),
             new ty.Position(range.endLineNumber, range.endColumn),
           );
-          const hints = workspace.inlayHints(handle, tyRange);
+          const hints = workspace.inlayHints(activeHandle, tyRange);
           if (!hints || hints.length === 0) return { hints: [], dispose() {} };
           return {
             hints: hints.map((h) => ({
@@ -198,7 +226,7 @@ export async function initTyChecker(
       provideSignatureHelp(_model: any, position: any) {
         try {
           const result = workspace.signatureHelp(
-            handle,
+            activeHandle,
             new ty.Position(position.lineNumber, position.column),
           );
           if (!result) return null;
@@ -247,7 +275,7 @@ export async function initTyChecker(
         },
         provideDocumentSemanticTokens(model: any) {
           try {
-            const tokens = workspace.semanticTokens(handle);
+            const tokens = workspace.semanticTokens(activeHandle);
             return generateMonacoTokens(tokens, model);
           } catch {
             return null;
@@ -260,12 +288,43 @@ export async function initTyChecker(
     // SemanticToken API may not be available in all ty_wasm builds
   }
 
-  return function dispose() {
-    clearTimeout(debounceTimer);
-    monaco.editor.setModelMarkers(model, "ty", []);
-    for (const d of disposables) {
-      d.dispose();
-    }
+  return {
+    switchFile(name: string, content: string) {
+      // Suppress content change listener during programmatic setValue
+      contentChangeEnabled = false;
+
+      if (name === "solution.py") {
+        activeHandle = solutionHandle;
+      } else {
+        // Open or update the test file in the workspace
+        let h = handles.get(name);
+        if (h) {
+          workspace.updateFile(h, content);
+        } else {
+          h = workspace.openFile(name, content);
+          handles.set(name, h);
+        }
+        activeHandle = h;
+      }
+
+      updateDiagnostics();
+      // Re-enable after a microtask (after Monaco processes the setValue)
+      queueMicrotask(() => {
+        contentChangeEnabled = true;
+      });
+    },
+
+    updateSolution(code: string) {
+      workspace.updateFile(solutionHandle, code);
+    },
+
+    dispose() {
+      clearTimeout(debounceTimer);
+      monaco.editor.setModelMarkers(model, "ty", []);
+      for (const d of disposables) {
+        d.dispose();
+      }
+    },
   };
 }
 
