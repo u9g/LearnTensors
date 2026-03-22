@@ -1,22 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from "vue";
-import { marked } from "marked";
+import { ref, provide, onMounted } from "vue";
 import TopBar from "./TopBar.vue";
-import {
-  darkModernTheme,
-  lightModernTheme,
-  enhancePythonTokenizer,
-} from "../composables/darkModernTheme";
-
-// Kick off heavy imports immediately (don't wait for onMounted)
-const monacoPromise =
-  typeof window !== "undefined" ? import("monaco-editor") : null;
-const workerPromise =
-  typeof window !== "undefined"
-    ? import("monaco-editor/esm/vs/editor/editor.worker?worker")
-    : null;
-const tyPromise =
-  typeof window !== "undefined" ? import("../composables/useTyChecker") : null;
+import ClientOnly from "./ClientOnly.vue";
+import SplitLayout from "./layout/SplitLayout.vue";
+import { useLayout } from "../composables/useLayout";
 
 interface TestCase {
   id: number;
@@ -36,29 +23,39 @@ interface Problem {
 
 const props = defineProps<{ problem: Problem }>();
 
-const difficultyClass = computed(
-  () => "difficulty-" + props.problem.difficulty.toLowerCase(),
+const { layout, moveTab, splitPanel, updateSizesForSplit, resetLayout } =
+  useLayout(props.problem.test_cases.length);
+
+// Shared state for child panels
+const solutionCode = ref(props.problem.starter_code);
+const cursorPosition = ref<{ lineNumber: number; column: number } | null>(null);
+const isDark = ref(
+  typeof localStorage !== "undefined"
+    ? localStorage.getItem("editor-theme") !== "light"
+    : true,
 );
+if (typeof document !== "undefined" && !isDark.value)
+  document.documentElement.classList.add("light-mode");
 
-const renderedDescription = computed(() => {
-  return marked.parse(props.problem.description) as string;
-});
-
-const editorEl = ref<HTMLElement | null>(null);
-const leftPanelEl = ref<HTMLElement | null>(null);
+const monacoRef = ref<any>(null);
 const editorReady = ref(false);
-let tyChecker: import("../composables/useTyChecker").TyChecker | null = null;
-
-const activeTab = ref("solution");
-let editorInstance: any = null;
-let solutionCode = props.problem.starter_code;
-
 const isRunning = ref(false);
 const showOutput = ref(false);
 const runResults = ref<
   Array<{ test_id: number; passed: boolean; output: string; error: string }>
 >([]);
 const runError = ref<string | null>(null);
+const themeToggleEl = ref<HTMLElement | null>(null);
+
+let editorInstance: any = null;
+
+function setEditorInstance(editor: any) {
+  editorInstance = editor;
+}
+
+function setTyChecker(_checker: any) {
+  // Stored by PanelEditor; provided for lifecycle management
+}
 
 async function loadCachedResults() {
   try {
@@ -69,15 +66,15 @@ async function loadCachedResults() {
       showOutput.value = true;
     }
   } catch {
-    // Ignore — no cached results
+    // Ignore
   }
 }
 
 async function runCode() {
   if (isRunning.value) return;
 
-  if (activeTab.value === "solution" && editorInstance) {
-    solutionCode = editorInstance.getValue();
+  if (editorInstance) {
+    solutionCode.value = editorInstance.getValue();
   }
 
   isRunning.value = true;
@@ -90,7 +87,7 @@ async function runCode() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        solution_code: solutionCode,
+        solution_code: solutionCode.value,
         problem_id: props.problem.id,
         test_cases: props.problem.test_cases,
       }),
@@ -105,74 +102,26 @@ async function runCode() {
   }
 }
 
-const tabs = computed(() => {
-  const t = [{ id: "solution", label: "solution.py" }];
-  props.problem.test_cases.forEach((_, i) => {
-    t.push({ id: `test-${i + 1}`, label: `test_${i + 1}.py` });
-  });
-  return t;
-});
-
-function forceTokenizeAll(
-  editor: import("monaco-editor").editor.IStandaloneCodeEditor,
-) {
-  const model = editor.getModel() as any;
-  if (model?.tokenization?.forceTokenization) {
-    model.tokenization.forceTokenization(model.getLineCount());
-  }
-}
-
-function switchTab(tabId: string) {
-  if (!editorInstance || activeTab.value === tabId) return;
-  // Save solution code when leaving solution tab
-  if (activeTab.value === "solution") {
-    solutionCode = editorInstance.getValue();
-    // Keep solution.py up to date in ty workspace for test imports
-    tyChecker?.updateSolution(solutionCode);
-  }
-  activeTab.value = tabId;
-  if (tabId === "solution") {
-    tyChecker?.switchFile("solution.py", solutionCode);
-    editorInstance.setValue(solutionCode);
-    editorInstance.updateOptions({ readOnly: false });
-  } else {
-    const idx = parseInt(tabId.split("-")[1]) - 1;
-    const tc = props.problem.test_cases[idx];
-    tyChecker?.switchFile(`test_${idx + 1}.py`, tc.input);
-    editorInstance.setValue(tc.input);
-    editorInstance.updateOptions({ readOnly: true });
-  }
-  forceTokenizeAll(editorInstance);
-}
-
-const isDark = ref(
-  typeof localStorage !== "undefined"
-    ? localStorage.getItem("editor-theme") !== "light"
-    : true,
-);
-if (typeof document !== "undefined" && !isDark.value)
-  document.documentElement.classList.add("light-mode");
-const themeToggleEl = ref<HTMLElement | null>(null);
-let monacoRef: typeof import("monaco-editor") | null = null;
-
 function toggleTheme() {
   const btn = themeToggleEl.value;
-  if (!btn || !monacoRef) return;
+  const monaco = monacoRef.value;
+  if (!btn || !monaco) return;
 
   const newDark = !isDark.value;
   const apply = () => {
     isDark.value = newDark;
     const theme = newDark ? "learntensors-dark" : "learntensors-light";
-    monacoRef!.editor.setTheme(theme);
+    monaco.editor.setTheme(theme);
     localStorage.setItem("editor-theme", newDark ? "dark" : "light");
-    // Re-colorize all code blocks with new theme
-    if (leftPanelEl.value) {
-      for (const el of leftPanelEl.value.querySelectorAll<HTMLElement>(
-        "pre code",
-      )) {
-        monacoRef!.editor.colorizeElement(el, { theme });
-      }
+
+    // Re-colorize all code blocks
+    const codeEls = document.querySelectorAll<HTMLElement>(
+      ".panel-description pre code",
+    );
+    for (const el of codeEls) {
+      monaco.editor.colorizeElement(el, { theme });
     }
+
     const s = document.documentElement.style;
     if (newDark) {
       document.documentElement.classList.remove("light-mode");
@@ -226,223 +175,62 @@ function toggleTheme() {
   });
 }
 
-onMounted(async () => {
+// Provide everything to child panels
+provide("problem", props.problem);
+provide("solutionCode", solutionCode);
+provide("cursorPosition", cursorPosition);
+provide("isDark", isDark);
+provide("monacoRef", monacoRef);
+provide("editorReady", editorReady);
+provide("isRunning", isRunning);
+provide("showOutput", showOutput);
+provide("runResults", runResults);
+provide("runError", runError);
+provide("runCode", runCode);
+provide("toggleTheme", toggleTheme);
+provide("themeToggleEl", themeToggleEl);
+provide("setEditorInstance", setEditorInstance);
+provide("setTyChecker", setTyChecker);
+provide("moveTab", moveTab);
+provide("splitPanel", splitPanel);
+provide("updateSizesForSplit", updateSizesForSplit);
+provide("resetLayout", resetLayout);
+
+onMounted(() => {
   loadCachedResults();
-
-  // Await pre-started imports (fired at module scope, not here)
-  const [monaco, editorWorker] = await Promise.all([
-    monacoPromise!,
-    workerPromise!,
-  ]);
-
-  monacoRef = monaco;
-  self.MonacoEnvironment = {
-    getWorker: () => new editorWorker.default(),
-  };
-
-  monaco.editor.defineTheme("learntensors-dark", darkModernTheme as any);
-  monaco.editor.defineTheme("learntensors-light", lightModernTheme as any);
-  enhancePythonTokenizer(monaco);
-  if (!editorEl.value) return;
-
-  editorReady.value = true;
-  const editor = (editorInstance = monaco.editor.create(editorEl.value, {
-    value: props.problem.starter_code,
-    language: "python",
-    theme: isDark.value ? "learntensors-dark" : "learntensors-light",
-    fontSize: 14,
-    minimap: { enabled: false },
-    overviewRulerBorder: false,
-    overviewRulerLanes: 0,
-    hideCursorInOverviewRuler: true,
-    scrollbar: { useShadows: false },
-    scrollBeyondLastLine: false,
-    padding: { top: 12 },
-    automaticLayout: true,
-    tabSize: 4,
-    renderLineHighlight: "line",
-    cursorBlinking: "smooth",
-    smoothScrolling: true,
-    "semanticHighlighting.enabled": true,
-  }));
-  forceTokenizeAll(editor);
-
-  // Initialize ty type checker — fire-and-forget (diagnostics/hover/completions, not visual)
-  void (async () => {
-    try {
-      const tyModule = await tyPromise!;
-      tyChecker = await tyModule.initTyChecker(
-        monaco,
-        editor,
-        props.problem.starter_code,
-      );
-    } catch (e) {
-      console.warn("ty type checker failed to load:", e);
-    }
-  })();
-
-  // Colorize all code blocks in the left panel (description + test cases) using Monaco
-  if (leftPanelEl.value) {
-    const codeEls = leftPanelEl.value.querySelectorAll<HTMLElement>("pre code");
-    for (const el of codeEls) {
-      const lang = el.className.match(/language-(\w+)/)?.[1] || "python";
-      el.setAttribute("data-lang", lang);
-      el.textContent = el.textContent?.replace(/\n$/, "") ?? "";
-      await monaco.editor.colorizeElement(el, {
-        theme: isDark.value ? "learntensors-dark" : "learntensors-light",
-      });
-    }
-  }
-});
-
-onUnmounted(() => {
-  tyChecker?.dispose();
 });
 </script>
 
 <template>
   <TopBar />
-  <div class="layout">
-    <div ref="leftPanelEl" class="left-panel">
-      <div class="problem-header">
-        <h1 class="problem-title">{{ problem.id }}. {{ problem.name }}</h1>
-        <span class="problem-difficulty" :class="difficultyClass">{{
-          problem.difficulty
-        }}</span>
-      </div>
-      <div class="problem-description" v-html="renderedDescription"></div>
-      <div v-if="problem.test_cases.length > 0" class="test-cases">
-        <div class="section-label">Test Cases</div>
-        <div
-          v-for="(tc, i) in problem.test_cases"
-          :key="tc.id"
-          class="test-case"
-        >
-          <div class="test-case-label">Test {{ i + 1 }} — Input</div>
-          <pre><code>{{ tc.input }}</code></pre>
-          <div class="test-case-label" style="margin-top: 8px">
-            Expected Output
-          </div>
-          <pre><code>{{ tc.expected_output }}</code></pre>
-        </div>
-      </div>
+  <ClientOnly>
+    <div class="layout">
+      <SplitLayout :node="layout" />
     </div>
-    <div class="right-panel">
-      <div class="editor-tabs">
-        <div
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="editor-tab"
-          :class="{ active: activeTab === tab.id }"
-          @click="switchTab(tab.id)"
-        >
-          {{ tab.label }}
-        </div>
-        <div style="flex: 1"></div>
-        <button
-          v-if="editorReady"
-          class="run-button"
-          :disabled="isRunning"
-          @click="runCode"
-        >
-          <svg
-            v-if="!isRunning"
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-          >
-            <polygon points="5,3 19,12 5,21" />
-          </svg>
-          <span v-else class="spinner"></span>
-          {{ isRunning ? "Running..." : "Run" }}
-        </button>
-      </div>
-      <div class="editor-container">
-        <pre
-          v-if="!editorReady"
-          class="editor-placeholder"
-        ><code>{{ problem.starter_code }}</code></pre>
-        <div
-          ref="editorEl"
-          style="width: 100%; height: 100%; position: absolute; top: 0; left: 0"
-        ></div>
-        <button
-          v-if="editorReady"
-          ref="themeToggleEl"
-          class="theme-toggle"
-          :title="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
-          @click="toggleTheme"
-        >
-          <svg
-            v-if="isDark"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="5" />
-            <line x1="12" y1="1" x2="12" y2="3" />
-            <line x1="12" y1="21" x2="12" y2="23" />
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-            <line x1="1" y1="12" x2="3" y2="12" />
-            <line x1="21" y1="12" x2="23" y2="12" />
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-          </svg>
-          <svg
-            v-else
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
-        </button>
-      </div>
-      <div v-if="showOutput" class="output-panel">
-        <div class="output-header">
-          <span class="output-title">Output</span>
-          <button class="output-close" @click="showOutput = false">
-            &times;
-          </button>
-        </div>
-        <div class="output-body">
-          <div v-if="isRunning" class="output-loading">
-            <span class="spinner"></span> Running tests...
+    <template #fallback>
+      <div class="layout">
+        <div class="left-panel-fallback">
+          <div class="problem-header">
+            <h1 class="problem-title">
+              {{ problem.id }}. {{ problem.name }}
+            </h1>
+            <span
+              class="problem-difficulty"
+              :class="'difficulty-' + problem.difficulty.toLowerCase()"
+            >{{ problem.difficulty }}</span>
           </div>
-          <div v-else-if="runError" class="output-error">{{ runError }}</div>
-          <template v-else>
-            <div
-              v-for="r in runResults"
-              :key="r.test_id"
-              class="test-result"
-              :class="r.passed ? 'passed' : 'failed'"
-            >
-              <span class="test-result-icon">{{
-                r.passed ? "\u2713" : "\u2717"
-              }}</span>
-              <span class="test-result-label">Test {{ r.test_id }}</span>
-              <pre
-                v-if="r.output || r.error"
-                class="test-result-output"
-              >{{ r.output || r.error }}</pre>
-            </div>
-          </template>
+        </div>
+        <div class="right-panel-fallback">
+          <div class="editor-tabs">
+            <div class="editor-tab active">solution.py</div>
+          </div>
+          <div class="editor-container">
+            <pre class="editor-placeholder"><code>{{ problem.starter_code }}</code></pre>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
+    </template>
+  </ClientOnly>
 </template>
 
 <style>
@@ -463,22 +251,27 @@ body {
 .layout {
   display: flex;
   height: calc(100vh - 50px);
+  overflow: hidden;
 }
-.left-panel {
-  width: 40%;
+
+/* SSR Fallback styles */
+.left-panel-fallback {
+  width: 35%;
   min-width: 0;
   overflow-y: auto;
   padding: 24px;
   border-right: 1px solid var(--border, #333);
   background: var(--bg2, #1a1a1a);
 }
-.right-panel {
+.right-panel-fallback {
   flex: 1;
   display: flex;
   flex-direction: column;
   background: var(--bg, #1e1e1e);
   min-width: 0;
 }
+
+/* Shared styles used by panel components */
 .editor-tabs {
   display: flex;
   align-items: center;
@@ -688,31 +481,34 @@ body {
   word-break: break-word;
 }
 
-.left-panel::-webkit-scrollbar {
+.panel-description::-webkit-scrollbar,
+.panel-output .output-body::-webkit-scrollbar {
   width: 8px;
 }
-.left-panel::-webkit-scrollbar-track {
+.panel-description::-webkit-scrollbar-track,
+.panel-output .output-body::-webkit-scrollbar-track {
   background: #1a1a1a;
 }
-.left-panel::-webkit-scrollbar-thumb {
+.panel-description::-webkit-scrollbar-thumb,
+.panel-output .output-body::-webkit-scrollbar-thumb {
   background: #555;
   border-radius: 4px;
 }
-.left-panel::-webkit-scrollbar-thumb:hover {
+.panel-description::-webkit-scrollbar-thumb:hover,
+.panel-output .output-body::-webkit-scrollbar-thumb:hover {
   background: #777;
 }
 
-/* Light mode scrollbar for left panel */
-.light-mode .left-panel::-webkit-scrollbar-track {
+.light-mode .panel-description::-webkit-scrollbar-track {
   background: #f0f0f0;
 }
-.light-mode .left-panel::-webkit-scrollbar-thumb {
+.light-mode .panel-description::-webkit-scrollbar-thumb {
   background: #c0c0c0;
 }
-.light-mode .left-panel::-webkit-scrollbar-thumb:hover {
+.light-mode .panel-description::-webkit-scrollbar-thumb:hover {
   background: #a0a0a0;
 }
-.light-mode .left-panel {
+.light-mode .panel-description {
   scrollbar-color: #c0c0c0 #f0f0f0;
 }
 
@@ -751,51 +547,6 @@ body {
   to {
     transform: rotate(360deg);
   }
-}
-.output-panel {
-  height: 200px;
-  max-height: 40%;
-  flex-shrink: 0;
-  border-top: 1px solid var(--border, #333);
-  background: var(--bg2, #1a1a1a);
-  display: flex;
-  flex-direction: column;
-}
-.output-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 32px;
-  padding: 0 12px;
-  background: var(--bg3, #252526);
-  border-bottom: 1px solid var(--border, #333);
-  flex-shrink: 0;
-}
-.output-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--fg2, #ccc);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.output-close {
-  background: none;
-  border: none;
-  color: var(--fg2, #888);
-  font-size: 18px;
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
-}
-.output-close:hover {
-  color: var(--fg, #fff);
-}
-.output-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-  font-family: "SF Mono", "Fira Code", Menlo, Consolas, monospace;
-  font-size: 13px;
 }
 .output-loading {
   display: flex;
@@ -855,34 +606,6 @@ body {
   .layout {
     flex-direction: column;
     height: auto;
-  }
-  .left-panel {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--border, #333);
-    padding: 16px;
-  }
-  .right-panel {
-    height: 60vh;
-    min-height: 300px;
-  }
-  .problem-title {
-    font-size: 18px;
-  }
-}
-
-@media (max-width: 480px) {
-  .top-bar-logo {
-    font-size: 18px;
-  }
-  .left-panel {
-    padding: 12px;
-  }
-  .problem-title {
-    font-size: 16px;
-  }
-  .problem-description {
-    font-size: 13px;
   }
 }
 </style>
