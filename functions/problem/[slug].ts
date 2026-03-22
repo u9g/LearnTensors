@@ -41,7 +41,22 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params, request })
   const isDev = new URL(request.url).hostname === "localhost";
   const jsPath = isDev ? "/src/entry-client-problem.ts" : "/assets/problem-page.js";
   const cssLink = isDev ? "" : '<link rel="stylesheet" href="/assets/problem-page.css" />';
-  const viteClient = isDev ? '<script type="module" src="/@vite/client"><\/script>' : "";
+  const viteClient = isDev ? `<script type="module" src="/@vite/client"><\/script>
+  <script>
+    (function(){
+      var _log=console.log,_warn=console.warn,_err=console.error;
+      ['log','warn','error'].forEach(function(m){
+        var orig=m==='log'?_log:m==='warn'?_warn:_err;
+        console[m]=function(){
+          orig.apply(console,arguments);
+          try{
+            var a=Array.prototype.slice.call(arguments).map(function(x){return typeof x==='string'?x:JSON.stringify(x)});
+            var x=new XMLHttpRequest();x.open('POST','http://localhost:5173/__browser_log');x.setRequestHeader('Content-Type','application/json');x.send(JSON.stringify({level:m,args:a}));
+          }catch(e){}
+        };
+      });
+    })();
+  <\/script>` : "";
 
   const html = `<!doctype html>
 <html lang="en">
@@ -51,6 +66,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params, request })
   <title>${esc(problem.name as string)} - LearnTensors</title>
   <meta name="description" content="${esc((problem.description as string).slice(0, 160))}" />
   ${cssLink}
+  ${isDev ? '<link rel="modulepreload" href="/node_modules/monaco-editor/esm/vs/editor/edcore.main.js" />' : '<link rel="modulepreload" href="/assets/problem-page.js" />'}
   <link rel="preload" href="/fonts/Skarpa-Regular.ttf" as="font" type="font/ttf" crossorigin />
   <style>
     @font-face{font-family:'Skarpa';src:url('/fonts/Skarpa-Regular.ttf') format('truetype');font-display:block}
@@ -64,7 +80,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params, request })
     .left-panel{width:40%;min-width:0;overflow-y:auto;padding:24px;border-right:1px solid var(--border);background:var(--bg2)}
     .right-panel{flex:1;display:flex;flex-direction:column;background:var(--bg);min-width:0}
     .editor-tabs{display:flex;align-items:center;height:36px;background:var(--bg3);border-bottom:1px solid var(--border);padding:0 8px;flex-shrink:0}
-    .editor-tab{font-size:13px;color:var(--fg2);padding:6px 12px;background:var(--bg);border-top:1px solid #007acc}
+    .editor-tab{font-size:13px;color:#888;padding:6px 12px;background:var(--bg3);border-top:1px solid transparent;cursor:pointer}
+    .editor-tab.active{color:var(--fg2);background:var(--bg);border-top:1px solid #007acc}
     .editor-container{flex:1;min-height:0;position:relative}
     .editor-placeholder{margin:0;padding:12px 0 0 64px;font-family:'SF Mono','Fira Code',Menlo,Consolas,monospace;font-size:14px;color:var(--fg2);background:var(--bg);height:100%;overflow:hidden;white-space:pre}
     .editor-placeholder code{font:inherit;color:inherit}
