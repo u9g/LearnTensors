@@ -30,14 +30,43 @@ def matrix_multiply(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
 );
 
 INSERT OR IGNORE INTO test_cases (id, problem_id, input, expected_output) VALUES
-(1, 1, 'a = torch.tensor([[1, 2], [3, 4]])
-b = torch.tensor([[5, 6], [7, 8]])', 'tensor([[19, 22],
+(1, 1, 'import torch
+from solution import matrix_multiply
+
+# Test 1
+a = torch.tensor([[1, 2], [3, 4]])
+b = torch.tensor([[5, 6], [7, 8]])
+result = matrix_multiply(a, b)
+expected = torch.tensor([[19, 22],
+        [43, 50]])
+
+assert torch.equal(result, expected), f"Expected {expected}, got {result}"
+print("Test 1 passed!")', 'tensor([[19, 22],
         [43, 50]])'),
-(2, 1, 'a = torch.tensor([[1, 0], [0, 1]])
-b = torch.tensor([[7, 8], [9, 10]])', 'tensor([[ 7,  8],
+(2, 1, 'import torch
+from solution import matrix_multiply
+
+# Test 2
+a = torch.tensor([[1, 0], [0, 1]])
+b = torch.tensor([[7, 8], [9, 10]])
+result = matrix_multiply(a, b)
+expected = torch.tensor([[ 7,  8],
+        [ 9, 10]])
+
+assert torch.equal(result, expected), f"Expected {expected}, got {result}"
+print("Test 2 passed!")', 'tensor([[ 7,  8],
         [ 9, 10]])'),
-(3, 1, 'a = torch.tensor([[2, 3, 4]])
-b = torch.tensor([[1], [2], [3]])', 'tensor([[20]])');
+(3, 1, 'import torch
+from solution import matrix_multiply
+
+# Test 3
+a = torch.tensor([[2, 3, 4]])
+b = torch.tensor([[1], [2], [3]])
+result = matrix_multiply(a, b)
+expected = torch.tensor([[20]])
+
+assert torch.equal(result, expected), f"Expected {expected}, got {result}"
+print("Test 3 passed!")', 'tensor([[20]])');
 
 INSERT OR IGNORE INTO problems (id, name, slug, description, starter_code, difficulty) VALUES (
   2,
@@ -74,13 +103,41 @@ def linear(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor) -> torch.T
 );
 
 INSERT OR IGNORE INTO test_cases (id, problem_id, input, expected_output) VALUES
-(4, 2, 'x = torch.tensor([[1.0, 2.0]])
+(4, 2, 'import torch
+from solution import linear
+
+# Test 1
+x = torch.tensor([[1.0, 2.0]])
 weight = torch.tensor([[0.5, -1.0], [1.5, 0.5]])
-bias = torch.tensor([0.1, -0.2])', 'tensor([[-1.4000,  2.3000]])'),
-(5, 2, 'x = torch.tensor([[1.0, 0.0], [0.0, 1.0]])
+bias = torch.tensor([0.1, -0.2])
+result = linear(x, weight, bias)
+expected = torch.tensor([[-1.4000,  2.3000]])
+
+assert torch.equal(result, expected), f"Expected {expected}, got {result}"
+print("Test 1 passed!")', 'tensor([[-1.4000,  2.3000]])'),
+(5, 2, 'import torch
+from solution import linear
+
+# Test 2
+x = torch.tensor([[1.0, 0.0], [0.0, 1.0]])
 weight = torch.tensor([[3.0, 4.0], [5.0, 6.0]])
-bias = torch.tensor([0.0, 0.0])', 'tensor([[3., 5.],
+bias = torch.tensor([0.0, 0.0])
+result = linear(x, weight, bias)
+expected = torch.tensor([[3., 5.],
+        [4., 6.]])
+
+assert torch.equal(result, expected), f"Expected {expected}, got {result}"
+print("Test 2 passed!")', 'tensor([[3., 5.],
         [4., 6.]])'),
-(6, 2, 'x = torch.tensor([[1.0, 2.0, 3.0]])
+(6, 2, 'import torch
+from solution import linear
+
+# Test 3
+x = torch.tensor([[1.0, 2.0, 3.0]])
 weight = torch.tensor([[1.0, 1.0, 1.0]])
-bias = torch.tensor([1.0])', 'tensor([[7.]])');
+bias = torch.tensor([1.0])
+result = linear(x, weight, bias)
+expected = torch.tensor([[7.]])
+
+assert torch.equal(result, expected), f"Expected {expected}, got {result}"
+print("Test 3 passed!")', 'tensor([[7.]])');
