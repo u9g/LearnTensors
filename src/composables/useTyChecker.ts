@@ -234,13 +234,6 @@ export async function initTyChecker(
         endLine: t.range.end.line - importLineCount,
         endCol: t.range.end.column,
       }));
-    console.log("semantic tokens:", adjustedTokens.map(t => ({
-      kind: tokenKinds[t.kind],
-      startLine: t.startLine, startCol: t.startCol,
-      endLine: t.endLine, endCol: t.endCol,
-      text: code.split("\n")[t.startLine - 1]?.slice(t.startCol - 1, t.endCol - 1),
-    })));
-
     // Build per-line semantic overlays: array of {start, end, color}
     const lineOverlays = new Map<
       number,
@@ -401,8 +394,6 @@ export async function initTyChecker(
           );
           if (!result) return null;
           const colorized = await colorizeHoverMarkdown(result.markdown);
-          console.log("hover input:", JSON.stringify(result.markdown));
-          console.log("hover output:", JSON.stringify(colorized));
           return {
             contents: [
               { value: colorized, supportHtml: true, isTrusted: true },
