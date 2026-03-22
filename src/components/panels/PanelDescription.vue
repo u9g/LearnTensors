@@ -35,15 +35,17 @@ const renderedDescription = computed(() => {
 async function colorizeCodeBlocks() {
   const monaco = monacoRef.value;
   if (!monaco || !descriptionEl.value) return;
+  const theme = isDark.value ? "learntensors-dark" : "learntensors-light";
   const codeEls =
     descriptionEl.value.querySelectorAll<HTMLElement>("pre code");
   for (const el of codeEls) {
     const lang = el.className.match(/language-(\w+)/)?.[1] || "python";
     el.setAttribute("data-lang", lang);
-    el.textContent = el.textContent?.replace(/\n$/, "") ?? "";
-    await monaco.editor.colorizeElement(el, {
-      theme: isDark.value ? "learntensors-dark" : "learntensors-light",
-    });
+    // Reset to plain text before re-colorizing (colorizeElement needs raw text)
+    const rawText = el.dataset.rawText ?? el.textContent?.replace(/\n$/, "") ?? "";
+    el.dataset.rawText = rawText;
+    el.textContent = rawText;
+    await monaco.editor.colorizeElement(el, { theme });
   }
 }
 
@@ -52,6 +54,10 @@ onMounted(() => {
 });
 
 watch(monacoRef, () => {
+  colorizeCodeBlocks();
+});
+
+watch(isDark, () => {
   colorizeCodeBlocks();
 });
 </script>

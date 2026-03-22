@@ -114,14 +114,6 @@ function toggleTheme() {
     monaco.editor.setTheme(theme);
     localStorage.setItem("editor-theme", newDark ? "dark" : "light");
 
-    // Re-colorize all code blocks
-    const codeEls = document.querySelectorAll<HTMLElement>(
-      ".panel-description pre code",
-    );
-    for (const el of codeEls) {
-      monaco.editor.colorizeElement(el, { theme });
-    }
-
     const s = document.documentElement.style;
     if (newDark) {
       document.documentElement.classList.remove("light-mode");
