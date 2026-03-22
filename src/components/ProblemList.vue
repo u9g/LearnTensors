@@ -12,6 +12,7 @@ interface Problem {
 
 const problems = ref<Problem[]>([]);
 const starredIds = ref<Set<number>>(new Set());
+const acceptedIds = ref<Set<number>>(new Set());
 
 async function toggleStar(problemId: number) {
   const isStarred = starredIds.value.has(problemId);
@@ -32,13 +33,16 @@ async function toggleStar(problemId: number) {
 }
 
 onMounted(async () => {
-  const [problemsRes, starsRes] = await Promise.all([
+  const [problemsRes, starsRes, acceptedRes] = await Promise.all([
     fetch("/api/problems"),
     fetch("/api/stars?user_id=default-user"),
+    fetch("/api/accepted?user_id=default-user"),
   ]);
   problems.value = await problemsRes.json();
-  const ids: number[] = await starsRes.json();
-  starredIds.value = new Set(ids);
+  const starIds: number[] = await starsRes.json();
+  starredIds.value = new Set(starIds);
+  const accIds: number[] = await acceptedRes.json();
+  acceptedIds.value = new Set(accIds);
 });
 </script>
 
@@ -46,6 +50,7 @@ onMounted(async () => {
   <div class="problem-list">
     <div class="problem-items">
       <div v-for="problem in problems" :key="problem.id" class="problem-row">
+        <span class="accepted-check">{{ acceptedIds.has(problem.id) ? '\u2713' : '' }}</span>
         <a :href="`/problem/${problem.slug}`" class="problem-link">
           {{ problem.id }}. {{ problem.name }}
         </a>
@@ -81,6 +86,14 @@ onMounted(async () => {
   padding: 12px 16px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 14px;
+}
+
+.accepted-check {
+  color: #00b8a3;
+  font-size: 14px;
+  font-weight: 700;
+  width: 20px;
+  flex-shrink: 0;
 }
 
 .problem-link {
