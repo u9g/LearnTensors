@@ -4,7 +4,7 @@ import { resolve } from 'path'
 import { appendFileSync, writeFileSync } from 'fs'
 
 function browserLogger(): Plugin {
-  const logFile = resolve(__dirname, 'browser.log')
+  const logFile = resolve(__dirname, 'dev-logs', 'browser.log')
   return {
     name: 'browser-logger',
     apply: 'serve',
