@@ -21,6 +21,7 @@ const tokenColors: Record<string, string> = {
   "delimiter.parenthesis": "#d4d4d4",
   "operator": "#d4d4d4",
   "predefined": "#dcdcaa",
+  "function": "#dcdcaa",
   "tag": "#dcdcaa",
   "type": "#4ec9b0",
   "type.identifier": "#4ec9b0",
@@ -58,8 +59,15 @@ function colorizeBlock(
       if (text.length === 0) continue;
 
       // Strip language suffix (e.g. "keyword.ts" → "keyword")
-      const rawType = tokens[t].type;
+      let rawType = tokens[t].type;
       const stripped = rawType.replace(/\.\w+$/, "");
+
+      // Detect function calls: identifier immediately followed by "("
+      if (stripped === "identifier" && t + 1 < tokens.length) {
+        const nextText = line.slice(tokens[t + 1].offset, t + 2 < tokens.length ? tokens[t + 2].offset : line.length);
+        if (nextText.startsWith("(")) rawType = "function";
+      }
+
       const color = tokenColors[rawType] ?? tokenColors[stripped] ?? defaultFg;
       lineHtml += `<span style="color:${color};">${escapeHtml(text)}</span>`;
     }
