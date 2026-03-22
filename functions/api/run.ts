@@ -122,14 +122,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   }
 
   const row = await env.DB.prepare(
-    "SELECT results, created_at FROM run_results WHERE user_id = ? AND problem_id = ? ORDER BY created_at DESC LIMIT 1"
-  ).bind(userId, Number(problemId)).first<{ results: string; created_at: string }>();
+    "SELECT results, created_at, submission_number, runtime_ms, peak_memory_kb FROM run_results WHERE user_id = ? AND problem_id = ? ORDER BY created_at DESC LIMIT 1"
+  ).bind(userId, Number(problemId)).first<{ results: string; created_at: string; submission_number: number; runtime_ms: number; peak_memory_kb: number | null }>();
 
   if (!row) {
     return Response.json({ results: [], cached: false });
   }
 
-  return Response.json({ results: JSON.parse(row.results), cached: true, created_at: row.created_at });
+  return Response.json({ results: JSON.parse(row.results), cached: true, created_at: row.created_at, submission_number: row.submission_number, runtime_ms: row.runtime_ms, peak_memory_kb: row.peak_memory_kb });
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
@@ -164,11 +164,27 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
     // 2. Wait for sandbox to be ready
     await waitForSandbox(env, sandboxId);
 
-    // 3. Write solution file
+    // 3. Write solution file and memory-tracking wrapper
     await writeFile(env, sandboxId, "/root/solution.py", solution_code);
+    await writeFile(env, sandboxId, "/root/_run.py",
+      "import sys, runpy, resource\n" +
+      "_exit = 0\n" +
+      "f = sys.argv[1]\n" +
+      "sys.argv = [f]\n" +
+      "try:\n" +
+      "    runpy.run_path(f, run_name='__main__')\n" +
+      "except SystemExit as e:\n" +
+      "    _exit = e.code if isinstance(e.code, int) else 1\n" +
+      "except Exception:\n" +
+      "    import traceback; traceback.print_exc(); _exit = 1\n" +
+      "print('__MAXRSS:' + str(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss))\n" +
+      "sys.exit(_exit)\n"
+    );
 
     // 4. Write test files and run each
     const results: TestResult[] = [];
+    const runStartTime = Date.now();
+    let peakMemoryKb = 0;
 
     for (let i = 0; i < test_cases.length; i++) {
       const tc = test_cases[i];
@@ -181,14 +197,23 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
         const { exitCode, result } = await executeCommand(
           env,
           sandboxId,
-          `bash -c "cd /root && python ${testFileName} 2>&1"`,
+          `bash -c "cd /root && python _run.py ${testFileName} 2>&1"`,
           30,
         );
+
+        // Extract peak memory from resource module output
+        const memMatch = result.match(/__MAXRSS:(\d+)/);
+        if (memMatch) {
+          // On Linux ru_maxrss is in KB
+          const memKb = parseInt(memMatch[1]);
+          if (memKb > peakMemoryKb) peakMemoryKb = memKb;
+        }
+        const cleanOutput = result.replace(/__MAXRSS:\d+\n?/, "");
 
         results.push({
           test_id: tc.id,
           passed: exitCode === 0,
-          output: result,
+          output: cleanOutput,
           error: "",
         });
       } catch (err: any) {
@@ -201,14 +226,22 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
       }
     }
 
-    // 5. Cache results in DB
+    const runtimeMs = Date.now() - runStartTime;
+
+    // 5. Cache results in DB with incrementing submission number
+    let submissionNumber = 0;
     if (problem_id) {
+      const prev = await env.DB.prepare(
+        "SELECT MAX(submission_number) as max_num FROM run_results WHERE user_id = ? AND problem_id = ?"
+      ).bind("default-user", problem_id).first<{ max_num: number | null }>();
+      submissionNumber = (prev?.max_num ?? 0) + 1;
+
       await env.DB.prepare(
-        "INSERT INTO run_results (user_id, problem_id, results) VALUES (?, ?, ?)"
-      ).bind("default-user", problem_id, JSON.stringify(results)).run();
+        "INSERT INTO run_results (user_id, problem_id, results, solution_code, submission_number, runtime_ms, peak_memory_kb) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      ).bind("default-user", problem_id, JSON.stringify(results), solution_code, submissionNumber, runtimeMs, peakMemoryKb || null).run();
     }
 
-    return Response.json({ results });
+    return Response.json({ results, submission_number: submissionNumber, runtime_ms: runtimeMs, peak_memory_kb: peakMemoryKb || null });
   } catch (err: any) {
     return Response.json(
       { results: [], error: err.message || "Execution failed" },

@@ -1,0 +1,2 @@
+ALTER TABLE run_results ADD COLUMN submission_number INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE run_results ADD COLUMN runtime_ms INTEGER NOT NULL DEFAULT 0;
