@@ -33,7 +33,7 @@ const tyPromise =
 const editorEl = ref<HTMLElement | null>(null);
 let editorInstance: any = null;
 let tyChecker: import("../../composables/useTyChecker").TyChecker | null = null;
-let currentTabId = props.activeTabId;
+let currentTabId = "solution";
 
 function forceTokenizeAll(
   editor: import("monaco-editor").editor.IStandaloneCodeEditor,
@@ -110,6 +110,9 @@ onMounted(async () => {
   });
   editorInstance = editor;
   setEditorInstance(editor);
+  if (props.activeTabId !== "solution") {
+    applyTab(props.activeTabId);
+  }
   forceTokenizeAll(editor);
 
   if (cursorPosition.value) {
