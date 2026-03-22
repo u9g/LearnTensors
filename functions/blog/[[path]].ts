@@ -12,7 +12,22 @@ export const onRequestGet: PagesFunction = async ({ request }) => {
     ? ""
     : '<link rel="stylesheet" href="/assets/blog.css" />';
   const viteClient = isDev
-    ? `<script type="module" src="/@vite/client"><\/script>`
+    ? `<script type="module" src="/@vite/client"><\/script>
+  <script>
+    (function(){
+      var _log=console.log,_warn=console.warn,_err=console.error;
+      ['log','warn','error'].forEach(function(m){
+        var orig=m==='log'?_log:m==='warn'?_warn:_err;
+        console[m]=function(){
+          orig.apply(console,arguments);
+          try{
+            var a=Array.prototype.slice.call(arguments).map(function(x){return typeof x==='string'?x:JSON.stringify(x)});
+            var x=new XMLHttpRequest();x.open('POST','http://localhost:5173/__browser_log');x.setRequestHeader('Content-Type','application/json');x.send(JSON.stringify({level:m,args:a}));
+          }catch(e){}
+        };
+      });
+    })();
+  <\/script>`
     : "";
 
   const title =

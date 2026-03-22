@@ -70,24 +70,36 @@ function colorizeBlock(
 }
 
 onMounted(async () => {
-  const [monaco, editorWorker] = await Promise.all([
-    import("monaco-editor"),
-    import("monaco-editor/esm/vs/editor/editor.worker?worker"),
-  ]);
+  try {
+    const [monaco, editorWorker] = await Promise.all([
+      import("monaco-editor"),
+      import("monaco-editor/esm/vs/editor/editor.worker?worker"),
+    ]);
 
-  self.MonacoEnvironment = {
-    getWorker: () => new editorWorker.default(),
-  };
+    self.MonacoEnvironment = {
+      getWorker: () => new editorWorker.default(),
+    };
 
-  monaco.editor.defineTheme("dark-modern", darkModernTheme as any);
-  monaco.editor.setTheme("dark-modern");
-  enhancePythonTokenizer(monaco);
+    monaco.editor.defineTheme("dark-modern", darkModernTheme as any);
+    monaco.editor.setTheme("dark-modern");
+    enhancePythonTokenizer(monaco);
 
-  const blocks = document.querySelectorAll<HTMLElement>("article pre > code");
-  for (const block of blocks) {
-    const text = block.textContent ?? "";
-    const lang = block.dataset.lang ?? "typescript";
-    block.innerHTML = colorizeBlock(text, lang, monaco);
+    // Wait for TypeScript language to be ready before tokenizing
+    // colorize() internally waits for the tokenizer; we use it once to prime it
+    await monaco.editor.colorize("x", "typescript", { tabSize: 2 });
+    await monaco.editor.colorize("x", "javascript", { tabSize: 2 });
+
+    const blocks = document.querySelectorAll<HTMLElement>("article pre > code");
+    for (const block of blocks) {
+      if (!block.dataset.original) {
+        block.dataset.original = block.textContent ?? "";
+      }
+      const text = block.dataset.original;
+      const lang = block.dataset.lang ?? "typescript";
+      block.innerHTML = colorizeBlock(text, lang, monaco);
+    }
+  } catch (e) {
+    console.error("blog colorize failed:", e);
   }
 });
 </script>
@@ -115,8 +127,7 @@ onMounted(async () => {
         <p>The hover widget runs all HTML through DOMPurify. The sanitizer only preserves <code>class</code> on <code>&lt;span&gt;</code> if it matches <code>codicon codicon-*</code>. All other classes are removed, so <code>mtk3</code> gets stripped.</p>
         <p>From Monaco's source at <code>vs/base/browser/markdownRenderer.js</code>:</p>
         <pre><code data-lang="javascript">if (e.attrName === 'class') {
-  e.keepAttr = /^codicon codicon-[a-z\-]+(
-    codicon-modifier-[a-z\-]+)?$/.test(e.attrValue);
+  e.keepAttr = /^codicon codicon-[a-z\-]+( codicon-modifier-[a-z\-]+)?$/.test(e.attrValue);
   return;
 }</code></pre>
 
