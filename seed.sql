@@ -7,9 +7,9 @@ INSERT OR IGNORE INTO problems (name, slug, description, starter_code, difficult
 
 **Input:**
 ```python
-A = [[1, 2],
+a = [[1, 2],
      [3, 4]]
-B = [[5, 6],
+b = [[5, 6],
      [7, 8]]
 ```
 
@@ -20,11 +20,11 @@ B = [[5, 6],
 ```
 
 ## Constraints
-- `A` has shape `(m, n)` and `B` has shape `(n, p)`
+- `a` has shape `(m, n)` and `b` has shape `(n, p)`
 - Return a tensor of shape `(m, p)`',
   'import torch
 
-def matrix_multiply(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+def matrix_multiply(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     pass',
   'Easy'
 );
