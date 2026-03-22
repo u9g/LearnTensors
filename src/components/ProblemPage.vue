@@ -114,7 +114,7 @@ async function runCode() {
 const submissionCodes = reactive<Record<string, string>>({});
 let currentSubmissionTabId: string | null = null;
 
-function openSubmission(id: number, _code: string, submissionNumber?: number) {
+function openSubmission(id: number, _code: string, allPassed?: boolean) {
   const tabId = `submission-${id}`;
 
   // Remove existing submission tab if different
@@ -127,7 +127,7 @@ function openSubmission(id: number, _code: string, submissionNumber?: number) {
   addTab("solution", {
     id: tabId,
     panelType: "submission-detail",
-    label: `Submission ${submissionNumber ?? id}`,
+    label: allPassed ? "Accepted" : "Failed",
     closable: true,
   });
 }

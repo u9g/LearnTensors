@@ -14,7 +14,7 @@ interface Submission {
 
 const problem = inject<any>("problem")!;
 const isRunning = inject<Ref<boolean>>("isRunning")!;
-const openSubmission = inject<(id: number, code: string, submissionNumber?: number) => void>("openSubmission")!
+const openSubmission = inject<(id: number, code: string, allPassed?: boolean) => void>("openSubmission")!
 
 const submissions = ref<Submission[]>([]);
 const loading = ref(true);
@@ -124,7 +124,7 @@ watch(isRunning, (val, old) => {
         <tr
           v-for="sub in sorted"
           :key="sub.id"
-          @click="openSubmission(sub.id, sub.solution_code, sub.submission_number)"
+          @click="openSubmission(sub.id, sub.solution_code, sub.allPassed)"
         >
           <td class="col-num">{{ sub.submission_number }}</td>
           <td class="col-status">
