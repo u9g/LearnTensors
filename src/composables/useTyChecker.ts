@@ -11,6 +11,10 @@ import type {
   FileHandle,
   SemanticToken as SemanticTokenType,
 } from "../ty_wasm/ty_wasm";
+import {
+  darkSemanticRules,
+  lightSemanticRules,
+} from "./darkModernTheme";
 
 import torchInit from "../stubs/torch/__init__.pyi?raw";
 import torchLinalg from "../stubs/torch/linalg.pyi?raw";
@@ -132,17 +136,277 @@ export async function initTyChecker(
   updateDiagnostics();
 
   // --- Hover Provider ---
+  function getSemanticColorMap(): Map<string, string> {
+    const isDark = !document.documentElement.classList.contains("light-mode");
+    const rules = isDark ? darkSemanticRules : lightSemanticRules;
+    const map = new Map<string, string>();
+    for (const r of rules) {
+      map.set(r.token, "#" + r.foreground);
+    }
+    return map;
+  }
+
+  function escapeHtml(s: string): string {
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function rgbToHex(rgb: string): string {
+    const m = rgb.match(/rgb\(\s*(\d+),\s*(\d+),\s*(\d+)\s*\)/);
+    if (!m) return rgb;
+    const hex = (n: string) => parseInt(n).toString(16).padStart(2, "0");
+    return `#${hex(m[1])}${hex(m[2])}${hex(m[3])}`;
+  }
+
+  function resolveMonarchColors(): Map<string, string> {
+    const map = new Map<string, string>();
+    for (const sheet of document.styleSheets) {
+      try {
+        for (const rule of sheet.cssRules) {
+          if (rule instanceof CSSStyleRule) {
+            const m = rule.selectorText.match(/^\.(mtk\d+)$/);
+            if (m && rule.style.color) {
+              map.set(m[1], rgbToHex(rule.style.color));
+            }
+          }
+        }
+      } catch {
+        // cross-origin stylesheet, skip
+      }
+    }
+    return map;
+  }
+
+  let hoverHandle: FileHandle | null = null;
+
+  function colorizeWithSemanticTokens(code: string): string {
+    const semColorMap = getSemanticColorMap();
+    const tokenKinds = ty.SemanticToken.kinds();
+    const isDark = !document.documentElement.classList.contains("light-mode");
+    const defaultFg = isDark ? "#cccccc" : "#3b3b3b";
+
+    // Extract import lines from the current file so ty can resolve types.
+    // Also add wildcard imports for bare `import X` so ty can resolve
+    // abbreviated names in hover (e.g. `Tensor` instead of `torch.Tensor`).
+    const sourceLines = model.getValue().split("\n");
+    const importLines: string[] = [];
+    for (const l of sourceLines) {
+      const bare = l.match(/^\s*import (\S+)/);
+      if (bare) {
+        importLines.push(l);
+        importLines.push(`from ${bare[1]} import *`);
+      } else if (/^\s*from \S+ import /.test(l)) {
+        importLines.push(l);
+      }
+    }
+    const importPrefix = importLines.length
+      ? importLines.join("\n") + "\n"
+      : "";
+    const importLineCount = importLines.length;
+
+    // Open/update a temp file in the ty workspace for semantic analysis
+    const bodyCode = /^def\s/.test(code) ? code + "\n    ..." : code;
+    const tempCode = importPrefix + bodyCode;
+    if (hoverHandle) {
+      workspace.updateFile(hoverHandle, tempCode);
+    } else {
+      hoverHandle = workspace.openFile("__hover__.py", tempCode);
+    }
+
+    // Get semantic tokens from ty
+    let semTokens: SemanticTokenType[] = [];
+    try {
+      semTokens = workspace.semanticTokens(hoverHandle);
+    } catch {
+      // fall through with empty tokens
+    }
+
+    // Filter to only tokens in the hover code (after imports) and adjust line numbers
+    const adjustedTokens = semTokens
+      .filter((t) => t.range.start.line > importLineCount)
+      .map((t) => ({
+        kind: t.kind,
+        modifiers: t.modifiers,
+        startLine: t.range.start.line - importLineCount,
+        startCol: t.range.start.column,
+        endLine: t.range.end.line - importLineCount,
+        endCol: t.range.end.column,
+      }));
+    console.log("semantic tokens:", adjustedTokens.map(t => ({
+      kind: tokenKinds[t.kind],
+      startLine: t.startLine, startCol: t.startCol,
+      endLine: t.endLine, endCol: t.endCol,
+      text: code.split("\n")[t.startLine - 1]?.slice(t.startCol - 1, t.endCol - 1),
+    })));
+
+    // Build per-line semantic overlays: array of {start, end, color}
+    const lineOverlays = new Map<
+      number,
+      { start: number; end: number; color: string }[]
+    >();
+    for (const t of adjustedTokens) {
+      const kindName = tokenKinds[t.kind];
+      const color = semColorMap.get(kindName);
+      if (!color) continue;
+      const line = t.startLine; // 1-based
+      const start = t.startCol - 1; // 0-based
+      const end = t.endCol - 1;
+      if (!lineOverlays.has(line)) lineOverlays.set(line, []);
+      lineOverlays.get(line)!.push({ start, end, color });
+    }
+
+    // Get Monarch tokens as base layer
+    const monarchColors = resolveMonarchColors();
+    const monarchLines = monaco.editor.tokenize(code, "python");
+
+    const codeLines = code.split("\n");
+    const htmlLines: string[] = [];
+
+    for (let i = 0; i < codeLines.length; i++) {
+      const line = codeLines[i];
+      const lineNum = i + 1; // 1-based for ty
+      const overlays = (lineOverlays.get(lineNum) || []).sort(
+        (a, b) => a.start - b.start,
+      );
+      const mTokens = monarchLines[i] || [];
+
+      // Build a color for each character position using Monarch as base
+      const charColors: string[] = new Array(line.length).fill(defaultFg);
+
+      // Apply Monarch token colors
+      for (let t = 0; t < mTokens.length; t++) {
+        const token = mTokens[t];
+        const nextOffset =
+          t + 1 < mTokens.length ? mTokens[t + 1].offset : line.length;
+        // Map Monarch token type to mtk class color
+        // tokenize returns type like "keyword.python" — we need to find
+        // which mtk class it maps to. Use colorize for a single token instead.
+        // Simpler: map known token types to theme colors directly.
+        const color = getMonarchColor(token.type, monarchColors, isDark);
+        if (color) {
+          for (let c = token.offset; c < nextOffset; c++) {
+            charColors[c] = color;
+          }
+        }
+      }
+
+      // Overlay semantic token colors (higher priority)
+      for (const o of overlays) {
+        for (let c = o.start; c < o.end && c < line.length; c++) {
+          charColors[c] = o.color;
+        }
+      }
+
+      // Build HTML by grouping consecutive same-color characters
+      let html = "";
+      let spanStart = 0;
+      for (let c = 1; c <= line.length; c++) {
+        if (c === line.length || charColors[c] !== charColors[spanStart]) {
+          html += `<span style="color:${charColors[spanStart]};">${escapeHtml(line.slice(spanStart, c))}</span>`;
+          spanStart = c;
+        }
+      }
+      if (line.length === 0) html = "";
+      htmlLines.push(html);
+    }
+
+    return htmlLines.join("\n");
+  }
+
+  function getMonarchColor(
+    tokenType: string,
+    _monarchColors: Map<string, string>,
+    isDark: boolean,
+  ): string | null {
+    // Map Monarch token types to theme colors
+    const base = tokenType.replace(/\.python$/, "");
+    const darkMap: Record<string, string> = {
+      keyword: "#569cd6",
+      predefined: "#4ec9b0",
+      identifier: "#cccccc",
+      operator: "#d4d4d4",
+      delimiter: "#cccccc",
+      "delimiter.curly": "#cccccc",
+      "delimiter.bracket": "#cccccc",
+      "delimiter.parenthesis": "#cccccc",
+      string: "#ce9178",
+      "string.escape": "#d7ba7d",
+      number: "#b5cea8",
+      "number.hex": "#b5cea8",
+      comment: "#6a9955",
+      tag: "#dcdcaa",
+      white: "",
+    };
+    const lightMap: Record<string, string> = {
+      keyword: "#0000ff",
+      predefined: "#267f99",
+      identifier: "#3b3b3b",
+      operator: "#000000",
+      delimiter: "#3b3b3b",
+      "delimiter.curly": "#3b3b3b",
+      "delimiter.bracket": "#3b3b3b",
+      "delimiter.parenthesis": "#3b3b3b",
+      string: "#a31515",
+      "string.escape": "#ee0000",
+      number: "#098658",
+      "number.hex": "#098658",
+      comment: "#008000",
+      tag: "#795e26",
+      white: "",
+    };
+    const map = isDark ? darkMap : lightMap;
+    return map[base] ?? map[tokenType] ?? null;
+  }
+
+  async function colorizeHoverMarkdown(md: string): Promise<string> {
+    const parts: string[] = [];
+    const codeBlockRe = /```(\w*)\n([\s\S]*?)```/g;
+    let last = 0;
+    for (const m of md.matchAll(codeBlockRe)) {
+      parts.push(md.slice(last, m.index!));
+      const lang = m[1] || "python";
+      const code = m[2].trimEnd();
+      if (lang === "python") {
+        parts.push(`<pre>${colorizeWithSemanticTokens(code)}</pre>`);
+      } else {
+        // Non-Python: use Monarch colorize with inline styles
+        const monarchColors = resolveMonarchColors();
+        const html = await monaco.editor.colorize(code, lang, { tabSize: 4 });
+        parts.push(
+          `<pre>${html.replace(
+            /class="(mtk\w+)"/g,
+            (_match: string, cls: string) => {
+              const color = monarchColors.get(cls);
+              return color ? `style="color:${color};"` : "";
+            },
+          )}</pre>`,
+        );
+      }
+      last = m.index! + m[0].length;
+    }
+    if (parts.length === 0) return md;
+    parts.push(md.slice(last));
+    return parts.join("");
+  }
+
   disposables.push(
     monaco.languages.registerHoverProvider("python", {
-      provideHover(_model: any, position: any) {
+      async provideHover(_model: any, position: any) {
         try {
           const result = workspace.hover(
             activeHandle,
             new ty.Position(position.lineNumber, position.column),
           );
           if (!result) return null;
+          const colorized = await colorizeHoverMarkdown(result.markdown);
+          console.log("hover input:", JSON.stringify(result.markdown));
+          console.log("hover output:", JSON.stringify(colorized));
           return {
-            contents: [{ value: result.markdown, isTrusted: true }],
+            contents: [
+              { value: colorized, supportHtml: true, isTrusted: true },
+            ],
             range: {
               startLineNumber: result.range.start.line,
               startColumn: result.range.start.column,

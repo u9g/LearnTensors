@@ -6,7 +6,7 @@
 
 // Semantic token rules for ty — both PascalCase (enum names) and lowercase
 // (LSP standard) since we don't know which format ty.SemanticToken.kinds() returns.
-const darkSemanticRules = [
+export const darkSemanticRules = [
   { token: "Namespace", foreground: "4ec9b0" },
   { token: "namespace", foreground: "4ec9b0" },
   { token: "Class", foreground: "4ec9b0" },
@@ -40,7 +40,7 @@ const darkSemanticRules = [
   { token: "operator.python", foreground: "d4d4d4" },
 ];
 
-const lightSemanticRules = [
+export const lightSemanticRules = [
   { token: "Namespace", foreground: "267f99" },
   { token: "namespace", foreground: "267f99" },
   { token: "Class", foreground: "267f99" },
