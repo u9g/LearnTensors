@@ -2,6 +2,7 @@
 import { computed, ref, onMounted, onUnmounted } from "vue";
 import { marked } from "marked";
 import TopBar from "./TopBar.vue";
+import { darkModernTheme, lightModernTheme, enhancePythonTokenizer } from "../composables/darkModernTheme";
 
 interface TestCase {
   id: number;
@@ -45,7 +46,7 @@ function toggleTheme() {
   const newDark = !isDark.value;
   const apply = () => {
     isDark.value = newDark;
-    const theme = newDark ? "learntensors" : "vs";
+    const theme = newDark ? "learntensors-dark" : "learntensors-light";
     monacoRef!.editor.setTheme(theme);
     localStorage.setItem("editor-theme", newDark ? "dark" : "light");
     // Re-colorize all code blocks with new theme
@@ -106,19 +107,16 @@ onMounted(async () => {
     getWorker: () => new editorWorker.default(),
   };
 
-  monaco.editor.defineTheme("learntensors", {
-    base: "vs-dark",
-    inherit: true,
-    rules: [],
-    colors: { "editor.background": "#1e1e1e" },
-  });
+  monaco.editor.defineTheme("learntensors-dark", darkModernTheme as any);
+  monaco.editor.defineTheme("learntensors-light", lightModernTheme as any);
+  enhancePythonTokenizer(monaco);
   if (!editorEl.value) return;
 
   editorReady.value = true;
   const editor = monaco.editor.create(editorEl.value, {
     value: props.problem.starter_code,
     language: "python",
-    theme: isDark.value ? "learntensors" : "vs",
+    theme: isDark.value ? "learntensors-dark" : "learntensors-light",
     fontSize: 14,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
@@ -195,7 +193,7 @@ onMounted(async () => {
       const lang = el.className.match(/language-(\w+)/)?.[1] || "python";
       el.setAttribute("data-lang", lang);
       el.textContent = el.textContent?.replace(/\n$/, "") ?? "";
-      await monaco.editor.colorizeElement(el, { theme: isDark.value ? "learntensors" : "vs" });
+      await monaco.editor.colorizeElement(el, { theme: isDark.value ? "learntensors-dark" : "learntensors-light" });
     }
   }
 });
