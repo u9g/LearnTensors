@@ -27,6 +27,18 @@ const props = defineProps<{ problem: Problem }>();
 const { layout, moveTab, addTab, removeTab, splitPanel, updateSizesForSplit, resetLayout } =
   useLayout();
 
+// Remove stale submission tabs from persisted layout (from previous problems)
+function removeSubmissionTabs(node: any) {
+  if (node.type === "panel") {
+    const hadActive = node.tabs.some((t: any) => t.id === node.activeTabId && t.id.startsWith("submission-"));
+    node.tabs = node.tabs.filter((t: any) => !t.id.startsWith("submission-"));
+    if (hadActive) node.activeTabId = node.tabs[0]?.id ?? "";
+  } else if (node.type === "split") {
+    for (const child of node.children) removeSubmissionTabs(child);
+  }
+}
+removeSubmissionTabs(layout.value);
+
 // Editable test cases — start with DB test cases, user can add more
 const testCases = ref<TestCase[]>([...props.problem.test_cases]);
 
