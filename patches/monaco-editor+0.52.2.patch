@@ -1,7 +1,16 @@
 diff --git a/node_modules/monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsController.js b/node_modules/monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsController.js
-index ebc9d1a..fc77d81 100644
+index ebc9d1a..4066946 100644
 --- a/node_modules/monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsController.js
 +++ b/node_modules/monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsController.js
+@@ -212,7 +212,7 @@ let InlayHintsController = class InlayHintsController {
+         }, this._debounceInfo.get(model));
+         this._sessionDisposables.add(scheduler);
+         this._sessionDisposables.add(toDisposable(() => cts?.dispose(true)));
+-        scheduler.schedule(0);
++        queueMicrotask(() => scheduler.onTimeout());
+         this._sessionDisposables.add(this._editor.onDidScrollChange((e) => {
+             // update when scroll position changes
+             // uses scrollTopChanged has weak heuristic to differenatiate between scrolling due to
 @@ -223,9 +223,8 @@ let InlayHintsController = class InlayHintsController {
          }));
          this._sessionDisposables.add(this._editor.onDidChangeModelContent((e) => {
@@ -15,7 +24,7 @@ index ebc9d1a..fc77d81 100644
          // mouse gestures
          this._sessionDisposables.add(this._installDblClickGesture(() => scheduler.schedule(0)));
 diff --git a/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js b/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js
-index af9ac92..4df515b 100644
+index af9ac92..8fa8632 100644
 --- a/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js
 +++ b/node_modules/monaco-editor/esm/vs/editor/contrib/semanticTokens/browser/documentSemanticTokens.js
 @@ -95,8 +95,8 @@ DocumentSemanticTokensFeature = __decorate([
@@ -41,3 +50,21 @@ index af9ac92..4df515b 100644
          }));
          this._register(this._model.onDidChangeAttached(() => {
              if (!this._fetchDocumentSemanticTokens.isScheduled()) {
+@@ -151,14 +150,15 @@ let ModelSemanticColoring = class ModelSemanticColoring extends Disposable {
+         bindDocumentChangeListeners();
+         this._register(this._provider.onDidChange(() => {
+             bindDocumentChangeListeners();
+-            this._fetchDocumentSemanticTokens.schedule(this._debounceInformation.get(this._model));
++            this._fetchDocumentSemanticTokens.cancel();
++            queueMicrotask(() => this._fetchDocumentSemanticTokens.onTimeout());
+         }));
+         this._register(themeService.onDidColorThemeChange(_ => {
+             // clear out existing tokens
+             this._setDocumentSemanticTokens(null, null, null, []);
+             this._fetchDocumentSemanticTokens.schedule(this._debounceInformation.get(this._model));
+         }));
+-        this._fetchDocumentSemanticTokens.schedule(0);
++        queueMicrotask(() => this._fetchDocumentSemanticTokens.onTimeout());
+     }
+     dispose() {
+         if (this._currentDocumentResponse) {
