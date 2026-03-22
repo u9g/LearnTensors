@@ -93,8 +93,13 @@ function switchTab(tabId: string) {
   forceTokenizeAll(editorInstance);
 }
 
-const isDark = ref(localStorage.getItem("editor-theme") !== "light");
-if (!isDark.value) document.documentElement.classList.add("light-mode");
+const isDark = ref(
+  typeof localStorage !== "undefined"
+    ? localStorage.getItem("editor-theme") !== "light"
+    : true,
+);
+if (typeof document !== "undefined" && !isDark.value)
+  document.documentElement.classList.add("light-mode");
 const themeToggleEl = ref<HTMLElement | null>(null);
 let monacoRef: typeof import("monaco-editor") | null = null;
 
