@@ -362,6 +362,9 @@ body {
   outline: none !important;
   border: none !important;
 }
+.editor-container .monaco-editor .overflowingContentWidgets {
+  z-index: 200;
+}
 .editor-container .margin-view-overlays {
   border: none !important;
 }
