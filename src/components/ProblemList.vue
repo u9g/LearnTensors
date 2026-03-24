@@ -88,6 +88,11 @@ onMounted(async () => {
   font-size: 14px;
 }
 
+.problem-row:nth-child(even) {
+  background-color: #272727;
+  border-radius: 8px;
+}
+
 .accepted-check {
   color: #00b8a3;
   font-size: 14px;
