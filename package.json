@@ -13,7 +13,8 @@
     "dev:seed": "wrangler d1 execute learntensors-db --local --file=seed.sql 2>&1 | sh scripts/strip-ansi.sh | tee dev-logs/seed.log",
     "dev:vite": "vite --port $(cat dev-logs/vite-port) --host 0.0.0.0 2>&1 | sh scripts/strip-ansi.sh | tee dev-logs/vite.log",
     "dev:wrangler": "wrangler pages dev --proxy=$(cat dev-logs/vite-port) --compatibility-date=2024-01-01 --ip 0.0.0.0 2>&1 | sh scripts/strip-ansi.sh | tee dev-logs/wrangler.log",
-    "build": "npm run build:ty-wasm && vue-tsc -b && vite build && vite build --ssr src/entry-server.ts --outDir dist/server",
+    "build:favicon": "node scripts/generate-favicon.mjs",
+    "build": "npm run build:favicon && npm run build:ty-wasm && vue-tsc -b && vite build && vite build --ssr src/entry-server.ts --outDir dist/server",
     "preview": "vite preview",
     "postinstall": "patch-package"
   },
@@ -29,6 +30,7 @@
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/tsconfig": "^0.9.0",
     "patch-package": "^8.0.1",
+    "sharp": "^0.34.5",
     "stmux": "^1.8.6",
     "typescript": "~5.9.3",
     "vite": "^8.0.1",

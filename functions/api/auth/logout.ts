@@ -18,7 +18,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
     await env.DB.prepare("DELETE FROM sessions WHERE id = ?").bind(sessionId).run();
   }
 
-  const url = new URL(request.url);
   const clearCookie = serializeCookie("__session", "", {
     httpOnly: true,
     secure: url.protocol === "https:",

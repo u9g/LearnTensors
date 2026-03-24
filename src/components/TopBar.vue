@@ -129,7 +129,7 @@ function toggleTheme() {
 
 <template>
   <header class="top-bar">
-    <a href="/" class="top-bar-logo">LearnTensors</a>
+    <a href="/" class="top-bar-logo"><img src="/logo.svg" alt="" class="top-bar-logo-icon" />LearnTensors</a>
     <div class="top-bar-center">
       <button
         v-if="showRun"
@@ -247,6 +247,15 @@ function toggleTheme() {
   color: #F5F5F5;
   letter-spacing: 2px;
   text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.top-bar-logo-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
 }
 
 .top-bar-center {
