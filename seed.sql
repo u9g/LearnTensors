@@ -89,9 +89,9 @@ from solution import linear
 from correct_solution import linear as correct_linear
 
 def test(x, weight, bias):
-    x = torch.tensor(x)
-    weight = torch.tensor(weight)
-    bias = torch.tensor(bias)
+    x = torch.tensor(x).float()
+    weight = torch.tensor(weight).float()
+    bias = torch.tensor(bias).float()
     result = linear(x, weight, bias)
     expected = correct_linear(x, weight, bias)
     assert torch.equal(result, expected), f"Expected: {expected.tolist()}\n     Got: {result.tolist()}"'
