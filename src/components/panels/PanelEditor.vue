@@ -173,6 +173,7 @@ onMounted(async () => {
         solutionCode.value,
       );
       setTyChecker(tyChecker);
+      applyTab(currentTabId);
     } catch (e) {
       console.warn("ty type checker failed to load:", e);
     }
