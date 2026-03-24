@@ -3,6 +3,8 @@ import { ref, reactive, provide, onMounted, watch } from "vue";
 import TopBar from "./TopBar.vue";
 import ClientOnly from "./ClientOnly.vue";
 import SplitLayout from "./layout/SplitLayout.vue";
+import PanelContent from "./layout/PanelContent.vue";
+import TabIcon from "./layout/TabIcon.vue";
 import { useLayout } from "../composables/useLayout";
 
 interface TestCase {
@@ -175,6 +177,8 @@ provide("moveTab", moveTab);
 provide("closeTab", closeTab);
 provide("splitPanel", splitPanel);
 provide("updateSizesForSplit", updateSizesForSplit);
+provide("layoutPanelContent", PanelContent);
+provide("layoutTabIcon", TabIcon);
 provide("resetLayout", resetLayout);
 
 // Debounce-save solution code to server
