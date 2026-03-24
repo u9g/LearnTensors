@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import LoginModal from "./LoginModal.vue";
+import { setPendingStar, consumePendingStar } from "../lib/drafts";
 
 interface Problem {
   id: number;
@@ -25,6 +26,7 @@ const showLoginModal = ref(false);
 
 async function toggleStar(problemId: number) {
   if (!props.user) {
+    setPendingStar(problemId);
     showLoginModal.value = true;
     return;
   }
@@ -57,6 +59,15 @@ onMounted(async () => {
   starredIds.value = new Set(starIds);
   const accIds: number[] = await acceptedRes.json();
   acceptedIds.value = new Set(accIds);
+});
+
+watch(() => props.user, (newUser) => {
+  if (newUser) {
+    const pendingId = consumePendingStar();
+    if (pendingId !== null && !starredIds.value.has(pendingId)) {
+      toggleStar(pendingId);
+    }
+  }
 });
 </script>
 

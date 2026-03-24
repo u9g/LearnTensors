@@ -64,6 +64,7 @@ const redirectPath = typeof window !== "undefined"
   min-width: 320px;
   position: relative;
   text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 .login-modal-close {

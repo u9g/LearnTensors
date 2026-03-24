@@ -7,7 +7,7 @@ import SplitLayout from "./layout/SplitLayout.vue";
 import PanelContent from "./layout/PanelContent.vue";
 import TabIcon from "./layout/TabIcon.vue";
 import { useLayout } from "../composables/useLayout";
-import { clearPendingAuthDraft, writeSavedDraft } from "../lib/drafts";
+import { clearPendingAuthDraft, writeSavedDraft, setPendingRun, consumePendingRun } from "../lib/drafts";
 
 interface TestCase {
   id: number;
@@ -106,6 +106,7 @@ async function runCode() {
   if (isRunning.value) return;
 
   if (!props.user) {
+    setPendingRun(props.problem.slug);
     showLoginModal.value = true;
     return;
   }
@@ -224,8 +225,11 @@ function debounceSave() {
 
 watch(solutionCode, debounceSave);
 
-onMounted(() => {
-  loadCachedResults();
+onMounted(async () => {
+  await loadCachedResults();
+  if (props.user && consumePendingRun(props.problem.slug)) {
+    runCode();
+  }
 });
 </script>
 
