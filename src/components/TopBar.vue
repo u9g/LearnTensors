@@ -1,7 +1,35 @@
 <script setup lang="ts">
 import { inject, ref, type Ref } from "vue";
 
-const props = defineProps<{ showRun?: boolean }>();
+interface AuthUser {
+  login: string;
+  avatarUrl: string;
+}
+
+const props = defineProps<{ showRun?: boolean; user?: AuthUser | null }>();
+
+const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
+const showUserMenu = ref(false);
+
+async function logout() {
+  await fetch("/api/auth/logout", { method: "POST" });
+  window.location.reload();
+}
+
+function toggleUserMenu() {
+  showUserMenu.value = !showUserMenu.value;
+}
+
+function onClickOutside(e: MouseEvent) {
+  const target = e.target as HTMLElement;
+  if (!target.closest(".user-menu-container")) {
+    showUserMenu.value = false;
+  }
+}
+
+if (typeof document !== "undefined") {
+  document.addEventListener("click", onClickOutside);
+}
 const editorReady = inject<Ref<boolean>>("editorReady", ref(false));
 const isRunning = inject<Ref<boolean>>("isRunning", ref(false));
 const runCode = inject<() => void>("runCode", () => {});
@@ -161,6 +189,15 @@ function toggleTheme() {
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
       </button>
+      <div v-if="user" class="user-menu-container">
+        <button class="user-menu-trigger" @click.stop="toggleUserMenu">
+          <img :src="user.avatarUrl" :alt="user.login" class="top-bar-avatar" />
+        </button>
+        <div v-if="showUserMenu" class="user-menu-dropdown">
+          <button class="user-menu-item" @click="logout">Sign out</button>
+        </div>
+      </div>
+      <a v-else class="top-bar-auth-btn" :href="`/api/auth/login?redirect=${encodeURIComponent(currentPath)}`">Sign in</a>
     </nav>
   </header>
 </template>
@@ -255,6 +292,95 @@ function toggleTheme() {
 }
 
 .light-mode .top-bar-link:hover {
+  color: #1e1e1e;
+}
+
+.user-menu-container {
+  position: relative;
+}
+
+.user-menu-trigger {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 50%;
+  transition: opacity 0.15s;
+}
+
+.user-menu-trigger:hover {
+  opacity: 0.8;
+}
+
+.top-bar-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.user-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--bg3, #252526);
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  min-width: 160px;
+  padding: 4px 0;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.user-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 13px;
+  color: var(--fg2, #ccc);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.user-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.light-mode .user-menu-dropdown {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.light-mode .user-menu-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.top-bar-auth-btn {
+  font-family: 'Skarpa', sans-serif;
+  background: none;
+  border: none;
+  color: #a0a0a0;
+  font-size: 16px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  padding: 4px 8px;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.top-bar-auth-btn:hover {
+  color: #f5f5f5;
+}
+
+.light-mode .top-bar-auth-btn {
+  color: #666;
+}
+
+.light-mode .top-bar-auth-btn:hover {
   color: #1e1e1e;
 }
 </style>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import LoginModal from "./LoginModal.vue";
 
 interface Problem {
   id: number;
@@ -10,18 +11,31 @@ interface Problem {
   difficulty: "Easy" | "Medium" | "Hard";
 }
 
+interface AuthUser {
+  login: string;
+  avatarUrl: string;
+}
+
+const props = defineProps<{ user?: AuthUser | null }>();
+
 const problems = ref<Problem[]>([]);
 const starredIds = ref<Set<number>>(new Set());
 const acceptedIds = ref<Set<number>>(new Set());
+const showLoginModal = ref(false);
 
 async function toggleStar(problemId: number) {
+  if (!props.user) {
+    showLoginModal.value = true;
+    return;
+  }
+
   const isStarred = starredIds.value.has(problemId);
   const method = isStarred ? "DELETE" : "POST";
 
   await fetch("/api/stars", {
     method,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ problem_id: problemId, user_id: "default-user" }),
+    body: JSON.stringify({ problem_id: problemId }),
   });
 
   if (isStarred) {
@@ -35,8 +49,8 @@ async function toggleStar(problemId: number) {
 onMounted(async () => {
   const [problemsRes, starsRes, acceptedRes] = await Promise.all([
     fetch("/api/problems"),
-    fetch("/api/stars?user_id=default-user"),
-    fetch("/api/accepted?user_id=default-user"),
+    fetch("/api/stars"),
+    fetch("/api/accepted"),
   ]);
   problems.value = await problemsRes.json();
   const starIds: number[] = await starsRes.json();
@@ -63,6 +77,11 @@ onMounted(async () => {
       </div>
     </div>
   </div>
+  <LoginModal
+    v-if="showLoginModal"
+    message="Sign in to star problems"
+    @close="showLoginModal = false"
+  />
 </template>
 
 <style scoped>

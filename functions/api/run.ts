@@ -113,18 +113,20 @@ async function writeFile(
   );
 }
 
-export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
-  const url = new URL(request.url);
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const user = (context.data as any).user;
+  if (!user) return Response.json({ results: [], cached: false });
+
+  const url = new URL(context.request.url);
   const problemId = url.searchParams.get("problem_id");
-  const userId = url.searchParams.get("user_id") ?? "default-user";
 
   if (!problemId) {
     return Response.json({ results: [], error: "Missing problem_id" }, { status: 400 });
   }
 
-  const row = await env.DB.prepare(
+  const row = await context.env.DB.prepare(
     "SELECT results, created_at, submission_number, runtime_ms, peak_memory_kb FROM run_results WHERE user_id = ? AND problem_id = ? ORDER BY created_at DESC LIMIT 1"
-  ).bind(userId, Number(problemId)).first<{ results: string; created_at: string; submission_number: number; runtime_ms: number; peak_memory_kb: number | null }>();
+  ).bind(user.userId, Number(problemId)).first<{ results: string; created_at: string; submission_number: number; runtime_ms: number; peak_memory_kb: number | null }>();
 
   if (!row) {
     return Response.json({ results: [], cached: false });
@@ -133,9 +135,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   return Response.json({ results: JSON.parse(row.results), cached: true, created_at: row.created_at, submission_number: row.submission_number, runtime_ms: row.runtime_ms, peak_memory_kb: row.peak_memory_kb });
 };
 
-export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const user = (context.data as any).user;
+  if (!user) return Response.json({ results: [], error: "Unauthorized" }, { status: 401 });
+
+  const env = context.env;
   const { solution_code, problem_id, test_harness, test_cases } =
-    await request.json<RunRequest>();
+    await context.request.json<RunRequest>();
 
   if (!solution_code || !test_cases?.length || !test_harness) {
     return Response.json(
@@ -248,7 +254,7 @@ print("__MAXRSS:" + str(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss))
     if (problem_id) {
       const prev = await env.DB.prepare(
         "SELECT MAX(submission_number) as max_num FROM run_results WHERE user_id = ? AND problem_id = ?"
-      ).bind("default-user", problem_id).first<{ max_num: number | null }>();
+      ).bind(user.userId, problem_id).first<{ max_num: number | null }>();
       submissionNumber = (prev?.max_num ?? 0) + 1;
 
       await env.DB.prepare(

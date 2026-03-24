@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, onMounted } from "vue";
 import TopBar from "./components/TopBar.vue";
 import ProblemList from "./components/ProblemList.vue";
 
@@ -13,9 +14,23 @@ if (typeof localStorage !== "undefined" && localStorage.getItem("editor-theme") 
   s.setProperty("--border", "#ccc");
   s.setProperty("--code-bg", "#f0f0f0");
 }
+
+const user = ref<{ login: string; avatarUrl: string } | null>(null);
+
+onMounted(async () => {
+  try {
+    const res = await fetch("/api/auth/me");
+    const data = await res.json();
+    if (data.authenticated) {
+      user.value = { login: data.login, avatarUrl: data.avatarUrl };
+    }
+  } catch {
+    // Ignore
+  }
+});
 </script>
 
 <template>
-  <TopBar />
-  <ProblemList />
+  <TopBar :user="user" />
+  <ProblemList :user="user" />
 </template>

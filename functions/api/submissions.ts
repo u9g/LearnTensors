@@ -2,16 +2,19 @@ interface Env {
   DB: D1Database;
 }
 
-export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
-  const url = new URL(request.url);
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const user = (context.data as any).user;
+  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const url = new URL(context.request.url);
   const submissionId = url.searchParams.get("id");
   const problemId = url.searchParams.get("problem_id");
 
   // Single submission detail
   if (submissionId) {
-    const row = await env.DB.prepare(
-      "SELECT id, results, solution_code, created_at, submission_number, runtime_ms, peak_memory_kb FROM run_results WHERE id = ? AND user_id = 'default-user'"
-    ).bind(Number(submissionId)).first<{ id: number; results: string; solution_code: string; created_at: string; submission_number: number; runtime_ms: number | null; peak_memory_kb: number | null }>();
+    const row = await context.env.DB.prepare(
+      "SELECT id, results, solution_code, created_at, submission_number, runtime_ms, peak_memory_kb FROM run_results WHERE id = ? AND user_id = ?"
+    ).bind(Number(submissionId), user.userId).first<{ id: number; results: string; solution_code: string; created_at: string; submission_number: number; runtime_ms: number | null; peak_memory_kb: number | null }>();
 
     if (!row) {
       return Response.json({ error: "Submission not found" }, { status: 404 });
@@ -36,9 +39,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
     return Response.json({ submissions: [], error: "Missing problem_id" }, { status: 400 });
   }
 
-  const { results } = await env.DB.prepare(
-    "SELECT id, results, solution_code, created_at, submission_number, runtime_ms FROM run_results WHERE user_id = 'default-user' AND problem_id = ? ORDER BY created_at DESC LIMIT 50"
-  ).bind(Number(problemId)).all<{ id: number; results: string; solution_code: string; created_at: string; submission_number: number; runtime_ms: number | null }>();
+  const { results } = await context.env.DB.prepare(
+    "SELECT id, results, solution_code, created_at, submission_number, runtime_ms FROM run_results WHERE user_id = ? AND problem_id = ? ORDER BY created_at DESC LIMIT 50"
+  ).bind(user.userId, Number(problemId)).all<{ id: number; results: string; solution_code: string; created_at: string; submission_number: number; runtime_ms: number | null }>();
 
   const submissions = results.map((row) => {
     const testResults = JSON.parse(row.results) as Array<{ passed: boolean }>;

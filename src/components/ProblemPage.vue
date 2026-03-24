@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, provide, onMounted, watch } from "vue";
 import TopBar from "./TopBar.vue";
+import LoginModal from "./LoginModal.vue";
 import ClientOnly from "./ClientOnly.vue";
 import SplitLayout from "./layout/SplitLayout.vue";
 import PanelContent from "./layout/PanelContent.vue";
@@ -24,7 +25,16 @@ interface Problem {
   test_cases: TestCase[];
 }
 
-const props = defineProps<{ problem: Problem }>();
+interface AuthUser {
+  userId: string;
+  login: string;
+  avatarUrl: string;
+}
+
+const props = defineProps<{ problem: Problem; user?: AuthUser | null }>();
+
+const showLoginModal = ref(false);
+const localStorageKey = `code:${props.problem.slug}`;
 
 const { layout, moveTab, addTab, removeTab, splitPanel, updateSizesForSplit, resetLayout } =
   useLayout();
@@ -76,6 +86,7 @@ function setTyChecker(_checker: any) {
 }
 
 async function loadCachedResults() {
+  if (!props.user) return;
   try {
     const res = await fetch(`/api/run?problem_id=${props.problem.id}`);
     const data = await res.json();
@@ -93,6 +104,11 @@ async function loadCachedResults() {
 
 async function runCode() {
   if (isRunning.value) return;
+
+  if (!props.user) {
+    showLoginModal.value = true;
+    return;
+  }
 
   isRunning.value = true;
   showOutput.value = true;
@@ -181,30 +197,63 @@ provide("layoutPanelContent", PanelContent);
 provide("layoutTabIcon", TabIcon);
 provide("resetLayout", resetLayout);
 
-// Debounce-save solution code to server
+// Debounce-save solution code
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 function debounceSave() {
   if (saveTimeout) clearTimeout(saveTimeout);
   saveTimeout = setTimeout(() => {
     const code = solutionCode.value;
     if (code.length > 1_000_000) return;
-    fetch("/api/solution", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ problem_id: props.problem.id, code }),
-    }).catch(() => {});
+
+    if (props.user) {
+      fetch("/api/solution", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ problem_id: props.problem.id, code }),
+      }).catch(() => {});
+    } else if (typeof localStorage !== "undefined") {
+      localStorage.setItem(localStorageKey, code);
+    }
   }, 1000);
 }
 
 watch(solutionCode, debounceSave);
 
+async function loadSavedSolution() {
+  if (props.user) {
+    try {
+      const res = await fetch(`/api/solution?problem_id=${props.problem.id}`);
+      const data = await res.json();
+      if (data.code) {
+        solutionCode.value = data.code;
+        return;
+      }
+    } catch {
+      // Fall through to localStorage
+    }
+  }
+
+  if (typeof localStorage !== "undefined") {
+    const saved = localStorage.getItem(localStorageKey);
+    if (saved) {
+      solutionCode.value = saved;
+    }
+  }
+}
+
 onMounted(() => {
+  loadSavedSolution();
   loadCachedResults();
 });
 </script>
 
 <template>
-  <TopBar show-run />
+  <TopBar show-run :user="user ?? null" />
+  <LoginModal
+    v-if="showLoginModal"
+    message="Sign in to run code"
+    @close="showLoginModal = false"
+  />
   <ClientOnly>
     <div class="layout">
       <SplitLayout :node="layout" />

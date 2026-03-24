@@ -12,7 +12,8 @@ function esc(s: string) {
     .replace(/"/g, "&quot;");
 }
 
-export const onRequestGet: PagesFunction<Env> = async ({ env, params, request }) => {
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const { env, params, request } = context;
   const slug = params.slug as string;
 
   const problem = await env.DB.prepare(
@@ -35,7 +36,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params, request })
   const problemData = JSON.stringify(problemObj);
 
   // Server-render the Vue component
-  const appHtml = await renderProblemPage(problemObj);
+  const user = (context.data as any).user ?? null;
+  const appHtml = await renderProblemPage(problemObj, user);
 
   // In dev, Vite serves source directly; in prod, use the built assets
   const isDev = new URL(request.url).hostname === "localhost";
@@ -116,7 +118,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params, request })
 </head>
 <body>
   <div id="app" style="visibility:hidden">${appHtml}</div>
-  <script>window.__PROBLEM__ = ${problemData};<\/script>
+  <script>window.__PROBLEM__ = ${problemData};window.__USER__ = ${JSON.stringify((context.data as any).user)};<\/script>
   ${viteClient}
   <script type="module" src="${jsPath}"><\/script>
 </body>
