@@ -129,7 +129,7 @@ function toggleTheme() {
 
 <template>
   <header class="top-bar">
-    <a href="/" class="top-bar-logo"><img src="/logo.svg" alt="" class="top-bar-logo-icon" />LearnTensors</a>
+    <a href="/" class="top-bar-logo"><img src="/favicon.svg" alt="" class="top-bar-logo-icon" />LearnTensors</a>
     <div class="top-bar-center">
       <button
         v-if="showRun"

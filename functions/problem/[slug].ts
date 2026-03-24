@@ -68,7 +68,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>${esc(problem.name as string)} - LearnTensors</title>
   <meta name="description" content="${esc((problem.description as string).slice(0, 160))}" />
   ${cssLink}
