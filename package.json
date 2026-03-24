@@ -11,8 +11,8 @@
     "dev:ssr": "vite build --ssr src/entry-server.ts --outDir dist/server 2>&1 | sh scripts/strip-ansi.sh | tee dev-logs/ssr.log",
     "dev:migrate": "echo y | wrangler d1 migrations apply learntensors-db --local 2>&1 | sh scripts/strip-ansi.sh | tee dev-logs/migrate.log",
     "dev:seed": "wrangler d1 execute learntensors-db --local --file=seed.sql 2>&1 | sh scripts/strip-ansi.sh | tee dev-logs/seed.log",
-    "dev:vite": "vite --port $(cat dev-logs/vite-port) 2>&1 | sh scripts/strip-ansi.sh | tee dev-logs/vite.log",
-    "dev:wrangler": "wrangler pages dev --proxy=$(cat dev-logs/vite-port) --compatibility-date=2024-01-01 2>&1 | sh scripts/strip-ansi.sh | tee dev-logs/wrangler.log",
+    "dev:vite": "vite --port $(cat dev-logs/vite-port) --host 0.0.0.0 2>&1 | sh scripts/strip-ansi.sh | tee dev-logs/vite.log",
+    "dev:wrangler": "wrangler pages dev --proxy=$(cat dev-logs/vite-port) --compatibility-date=2024-01-01 --ip 0.0.0.0 2>&1 | sh scripts/strip-ansi.sh | tee dev-logs/wrangler.log",
     "build": "npm run build:ty-wasm && vue-tsc -b && vite build && vite build --ssr src/entry-server.ts --outDir dist/server",
     "preview": "vite preview",
     "postinstall": "patch-package"

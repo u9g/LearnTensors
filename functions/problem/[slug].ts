@@ -40,7 +40,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const appHtml = await renderProblemPage(problemObj, user);
 
   // In dev, Vite serves source directly; in prod, use the built assets
-  const isDev = new URL(request.url).hostname === "localhost";
+  const reqHostname = new URL(request.url).hostname;
+  const isDev = reqHostname === "localhost" || reqHostname === "127.0.0.1";
   const jsPath = isDev ? "/src/entry-client-problem.ts" : "/assets/problem-page.js";
   const cssLink = isDev ? "" : '<link rel="stylesheet" href="/assets/problem-page.css" />';
   const viteClient = isDev ? `<script type="module" src="/@vite/client"><\/script>
