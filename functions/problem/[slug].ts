@@ -33,7 +33,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     .all();
 
   const problemObj = { ...problem, test_cases: testCases } as any;
-  const problemData = JSON.stringify(problemObj);
+  const safeJson = (obj: unknown) =>
+    JSON.stringify(obj).replace(/</g, "\\u003c");
+  const problemData = safeJson(problemObj);
 
   // Server-render the Vue component
   const user = (context.data as any).user ?? null;
@@ -119,7 +121,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 </head>
 <body>
   <div id="app" style="visibility:hidden">${appHtml}</div>
-  <script>window.__PROBLEM__ = ${problemData};window.__USER__ = ${JSON.stringify((context.data as any).user)};<\/script>
+  <script>window.__PROBLEM__ = ${problemData};window.__USER__ = ${safeJson((context.data as any).user)};<\/script>
   ${viteClient}
   <script type="module" src="${jsPath}"><\/script>
 </body>

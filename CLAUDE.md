@@ -43,9 +43,6 @@ There is no linter, formatter, or test runner configured.
 ### SSR Pattern
 The problem page is server-rendered by a Cloudflare Pages Function (`functions/problem/[slug].ts`). It calls `renderProblemPage()` from the SSR bundle, inlines critical CSS, and passes problem data to the client via `window.__PROBLEM__`. The client entry hydrates the Vue component onto the server-rendered HTML.
 
-### Monaco Editor
-Loaded from CDN (not bundled) using AMD require/config. The editor is intentionally separated from Vue's DOM hydration. Enter key is explicitly bound to insert newlines (workaround for CDN loading).
-
 ### ty Type Checker (WASM)
 `src/composables/useTyChecker.ts` integrates Astral's ty (from Ruff) as WASM to provide real-time Python diagnostics, hover info, completions, inlay hints, signature help, and semantic tokens in the Monaco editor. Built via `scripts/build-ty-wasm.sh`, output in `src/ty_wasm/`.
 
@@ -56,7 +53,7 @@ Cloudflare Pages Functions in `functions/`:
 - `problem/[slug].ts` — SSR problem page
 
 ### Database Schema
-Three tables: `problems` (name, slug, description, starter_code, difficulty), `test_cases` (problem_id, input, expected_output), `stars` (user_id, problem_id).
+In ./migrations/ .
 
 ## Key Technical Decisions
 - Vite SSR target is `webworker` (for Cloudflare Workers runtime)

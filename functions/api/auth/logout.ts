@@ -5,6 +5,12 @@ interface Env {
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
+  const origin = request.headers.get("Origin");
+  const url = new URL(request.url);
+  if (origin && origin !== url.origin) {
+    return new Response("Forbidden", { status: 403 });
+  }
+
   const cookies = parseCookies(request.headers.get("Cookie"));
   const sessionId = cookies["__session"];
 

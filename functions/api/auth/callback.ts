@@ -62,6 +62,18 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   }
 
   const ghUser = await userRes.json<{ id: number; login: string; avatar_url: string }>();
+
+  // Revoke the access token — we only needed it for the profile fetch
+  fetch(`https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/token`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Basic ${btoa(`${env.GITHUB_CLIENT_ID}:${env.GITHUB_CLIENT_SECRET}`)}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ access_token: tokenData.access_token }),
+  }).catch(() => {});
+
   const userId = `github:${ghUser.id}`;
   const sessionId = crypto.randomUUID();
 
@@ -71,11 +83,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
     .slice(0, 19)
     .replace("T", " ");
 
-  await env.DB.prepare(
-    "INSERT INTO sessions (id, user_id, github_login, github_avatar_url, expires_at) VALUES (?, ?, ?, ?, ?)"
-  )
-    .bind(sessionId, userId, ghUser.login, ghUser.avatar_url, expiresAt)
-    .run();
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM sessions WHERE datetime(expires_at) < datetime('now')"),
+    env.DB.prepare(
+      "DELETE FROM sessions WHERE user_id = ? AND id NOT IN (SELECT id FROM sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 4)"
+    ).bind(userId, userId),
+    env.DB.prepare(
+      "INSERT INTO sessions (id, user_id, github_login, github_avatar_url, expires_at) VALUES (?, ?, ?, ?, ?)"
+    ).bind(sessionId, userId, ghUser.login, ghUser.avatar_url, expiresAt),
+  ]);
 
   const isSecure = url.protocol === "https:";
   const sessionCookie = serializeCookie("__session", sessionId, {
