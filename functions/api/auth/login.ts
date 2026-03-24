@@ -1,3 +1,4 @@
+import { sanitizeRedirect } from "../../lib/redirects";
 import { serializeCookie } from "../../lib/cookies";
 
 interface Env {
@@ -19,7 +20,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
     });
   }
 
-  const redirect = url.searchParams.get("redirect") || "/";
+  const redirect = sanitizeRedirect(url.searchParams.get("redirect"));
   const state = crypto.randomUUID();
 
   const stateCookie = serializeCookie("__oauth_state", `${state}:${redirect}`, {

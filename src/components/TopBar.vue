@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { inject, ref, type Ref } from "vue";
+import { inject, onMounted, onUnmounted, ref, type Ref } from "vue";
+import { stashPendingAuthDraft } from "../lib/drafts";
 
 interface AuthUser {
   login: string;
@@ -8,7 +9,11 @@ interface AuthUser {
 
 const props = defineProps<{ showRun?: boolean; user?: AuthUser | null }>();
 
-const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
+const problem = inject<any | null>("problem", null);
+const solutionCode = inject<Ref<string> | null>("solutionCode", null);
+const currentPath = typeof window !== "undefined"
+  ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+  : "/";
 const showUserMenu = ref(false);
 
 async function logout() {
@@ -21,15 +26,18 @@ function toggleUserMenu() {
 }
 
 function onClickOutside(e: MouseEvent) {
-  const target = e.target as HTMLElement;
-  if (!target.closest(".user-menu-container")) {
+  const target = e.target instanceof Element ? e.target : null;
+  if (!target?.closest(".user-menu-container")) {
     showUserMenu.value = false;
   }
 }
 
-if (typeof document !== "undefined") {
-  document.addEventListener("click", onClickOutside);
+function onSignInClick() {
+  if (!props.user && problem?.slug && solutionCode) {
+    stashPendingAuthDraft(problem.slug, solutionCode.value);
+  }
 }
+
 const editorReady = inject<Ref<boolean>>("editorReady", ref(false));
 const isRunning = inject<Ref<boolean>>("isRunning", ref(false));
 const runCode = inject<() => void>("runCode", () => {});
@@ -43,6 +51,14 @@ const isDark = inject<Ref<boolean>>("isDark", ref(
 ));
 
 const themeToggleEl = ref<HTMLElement | null>(null);
+
+onMounted(() => {
+  document.addEventListener("click", onClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("click", onClickOutside);
+});
 
 function toggleTheme() {
   const btn = themeToggleEl.value;
@@ -197,7 +213,12 @@ function toggleTheme() {
           <button class="user-menu-item" @click="logout">Sign out</button>
         </div>
       </div>
-      <a v-else class="top-bar-auth-btn" :href="`/api/auth/login?redirect=${encodeURIComponent(currentPath)}`">Sign in</a>
+      <a
+        v-else
+        class="top-bar-auth-btn"
+        :href="`/api/auth/login?redirect=${encodeURIComponent(currentPath)}`"
+        @click="onSignInClick"
+      >Sign in</a>
     </nav>
   </header>
 </template>

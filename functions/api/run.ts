@@ -259,7 +259,7 @@ print("__MAXRSS:" + str(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss))
 
       await env.DB.prepare(
         "INSERT INTO run_results (user_id, problem_id, results, solution_code, submission_number, runtime_ms, peak_memory_kb) VALUES (?, ?, ?, ?, ?, ?, ?)"
-      ).bind("default-user", problem_id, JSON.stringify(results), solution_code, submissionNumber, runtimeMs, peakMemoryKb || null).run();
+      ).bind(user.userId, problem_id, JSON.stringify(results), solution_code, submissionNumber, runtimeMs, peakMemoryKb || null).run();
     }
 
     return Response.json({ results, submission_number: submissionNumber, runtime_ms: runtimeMs, peak_memory_kb: peakMemoryKb || null });

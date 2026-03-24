@@ -5,12 +5,14 @@ import {
   lightModernTheme,
   enhancePythonTokenizer,
 } from "../../composables/darkModernTheme";
+import { readPendingAuthDraft, readSavedDraft } from "../../lib/drafts";
 
 const props = defineProps<{
   activeTabId: string;
 }>();
 
 const problem = inject<any>("problem")!;
+const authUser = inject<any | null>("authUser", null);
 const solutionCode = inject<Ref<string>>("solutionCode")!;
 const cursorPosition = inject<Ref<{ lineNumber: number; column: number } | null>>("cursorPosition")!;
 const isDark = inject<Ref<boolean>>("isDark")!;
@@ -79,6 +81,32 @@ watch(() => props.activeTabId, (newId) => {
   if (newId !== currentTabId) applyTab(newId);
 });
 
+async function loadInitialSolutionCode() {
+  if (authUser) {
+    const pendingDraft = readPendingAuthDraft(problem.slug);
+    if (pendingDraft !== null) {
+      solutionCode.value = pendingDraft;
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/solution?problem_id=${problem.id}`);
+      const data = await res.json();
+      if (data.code !== null && data.code !== undefined) {
+        solutionCode.value = data.code;
+        return;
+      }
+    } catch {
+      // Fall through to local draft
+    }
+  }
+
+  const localDraft = readSavedDraft(problem.slug);
+  if (localDraft !== null) {
+    solutionCode.value = localDraft;
+  }
+}
+
 onMounted(async () => {
   if (!monacoPromise || !workerPromise) return;
 
@@ -87,16 +115,7 @@ onMounted(async () => {
     workerPromise,
   ]);
 
-  // Load saved solution code before creating editor
-  try {
-    const res = await fetch(`/api/solution?problem_id=${problem.id}`);
-    const data = await res.json();
-    if (data.code !== null && data.code !== undefined) {
-      solutionCode.value = data.code;
-    }
-  } catch {
-    // Use starter code as fallback
-  }
+  await loadInitialSolutionCode();
 
   monacoRef.value = monaco;
   self.MonacoEnvironment = {

@@ -1,4 +1,5 @@
 import { parseCookies, serializeCookie } from "../../lib/cookies";
+import { sanitizeRedirect } from "../../lib/redirects";
 
 interface Env {
   DB: D1Database;
@@ -23,7 +24,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 
   const colonIdx = oauthState.indexOf(":");
   const savedState = colonIdx === -1 ? oauthState : oauthState.slice(0, colonIdx);
-  const redirect = colonIdx === -1 ? "/" : oauthState.slice(colonIdx + 1);
+  const redirect = sanitizeRedirect(colonIdx === -1 ? "/" : oauthState.slice(colonIdx + 1));
 
   if (state !== savedState) {
     return new Response("State mismatch", { status: 400 });
@@ -65,7 +66,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   const sessionId = crypto.randomUUID();
 
   // 30-day expiry
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 19)
+    .replace("T", " ");
 
   await env.DB.prepare(
     "INSERT INTO sessions (id, user_id, github_login, github_avatar_url, expires_at) VALUES (?, ?, ?, ?, ?)"

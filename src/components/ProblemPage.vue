@@ -7,6 +7,7 @@ import SplitLayout from "./layout/SplitLayout.vue";
 import PanelContent from "./layout/PanelContent.vue";
 import TabIcon from "./layout/TabIcon.vue";
 import { useLayout } from "../composables/useLayout";
+import { clearPendingAuthDraft, writeSavedDraft } from "../lib/drafts";
 
 interface TestCase {
   id: number;
@@ -34,7 +35,6 @@ interface AuthUser {
 const props = defineProps<{ problem: Problem; user?: AuthUser | null }>();
 
 const showLoginModal = ref(false);
-const localStorageKey = `code:${props.problem.slug}`;
 
 const { layout, moveTab, addTab, removeTab, splitPanel, updateSizesForSplit, resetLayout } =
   useLayout();
@@ -171,6 +171,7 @@ function closeTab(tabId: string) {
 
 // Provide everything to child panels
 provide("problem", props.problem);
+provide("authUser", props.user ?? null);
 provide("testCases", testCases);
 provide("solutionCode", solutionCode);
 provide("cursorPosition", cursorPosition);
@@ -210,39 +211,20 @@ function debounceSave() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ problem_id: props.problem.id, code }),
-      }).catch(() => {});
-    } else if (typeof localStorage !== "undefined") {
-      localStorage.setItem(localStorageKey, code);
+      })
+        .then((res) => {
+          if (res.ok) clearPendingAuthDraft(props.problem.slug);
+        })
+        .catch(() => {});
+    } else {
+      writeSavedDraft(props.problem.slug, code);
     }
   }, 1000);
 }
 
 watch(solutionCode, debounceSave);
 
-async function loadSavedSolution() {
-  if (props.user) {
-    try {
-      const res = await fetch(`/api/solution?problem_id=${props.problem.id}`);
-      const data = await res.json();
-      if (data.code) {
-        solutionCode.value = data.code;
-        return;
-      }
-    } catch {
-      // Fall through to localStorage
-    }
-  }
-
-  if (typeof localStorage !== "undefined") {
-    const saved = localStorage.getItem(localStorageKey);
-    if (saved) {
-      solutionCode.value = saved;
-    }
-  }
-}
-
 onMounted(() => {
-  loadSavedSolution();
   loadCachedResults();
 });
 </script>
