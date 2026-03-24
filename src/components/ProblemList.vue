@@ -175,6 +175,10 @@ onMounted(async () => {
   color: #d1243b;
 }
 
+.light-mode .problem-row:nth-child(even) {
+  background-color: #f0f0f0;
+}
+
 .light-mode .star-btn:hover {
   background-color: #e8e8e8;
   color: #1e1e1e;
