@@ -109,9 +109,24 @@ onMounted(async () => {
 
   if (!editorEl.value) return;
 
+  // Determine initial content based on active tab so tokenizer starts with correct text
+  let initialValue = solutionCode.value;
+  let initialReadOnly = false;
+  if (props.activeTabId === "test-harness") {
+    initialValue = problem.test_harness ?? "";
+    initialReadOnly = true;
+  } else if (props.activeTabId.startsWith("submission-")) {
+    initialValue = submissionCodes[props.activeTabId] ?? "";
+    initialReadOnly = true;
+  } else if (props.activeTabId !== "solution") {
+    const idx = parseInt(props.activeTabId.split("-")[1]) - 1;
+    initialValue = problem.test_cases[idx]?.input ?? "";
+    initialReadOnly = true;
+  }
+
   editorReady.value = true;
   const editor = monaco.editor.create(editorEl.value, {
-    value: solutionCode.value,
+    value: initialValue,
     language: "python",
     theme: isDark.value ? "learntensors-dark" : "learntensors-light",
     fontSize: 14,
@@ -139,7 +154,8 @@ onMounted(async () => {
   });
 
   if (props.activeTabId !== "solution") {
-    applyTab(props.activeTabId);
+    currentTabId = props.activeTabId;
+    editor.updateOptions({ readOnly: initialReadOnly });
   }
   forceTokenizeAll(editor);
 
