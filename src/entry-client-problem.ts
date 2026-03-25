@@ -10,4 +10,3 @@ declare global {
 }
 
 createSSRApp(ProblemPage, { problem: window.__PROBLEM__, user: window.__USER__ }).mount("#app");
-document.getElementById("app")!.style.visibility = "visible";

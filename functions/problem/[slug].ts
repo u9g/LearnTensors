@@ -121,7 +121,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   <\/script>
 </head>
 <body>
-  <div id="app" style="visibility:hidden">${appHtml}</div>
+  <div id="app">${appHtml}</div>
   <script>window.__PROBLEM__ = ${problemData};window.__USER__ = ${safeJson((context.data as any).user)};<\/script>
   ${viteClient}
   <script type="module" src="${jsPath}"><\/script>

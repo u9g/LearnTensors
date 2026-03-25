@@ -1,4 +1,5 @@
-INSERT OR IGNORE INTO problems (name, slug, description, starter_code, difficulty, correct_code, test_harness) VALUES (
+INSERT OR IGNORE INTO problems (id, name, slug, description, starter_code, difficulty, correct_code, test_harness) VALUES (
+  1,
   'Matrix Multiplication',
   'matrix-multiplication',
   'Write a function that takes two 2D tensors (matrices) as input and returns their matrix product.
