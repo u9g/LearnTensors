@@ -227,7 +227,7 @@ function toggleTheme() {
 @font-face {
   font-family: 'Skarpa';
   src: url('/fonts/Skarpa-Regular.ttf') format('truetype');
-  font-display: block;
+  font-display: swap;
 }
 
 .top-bar {
