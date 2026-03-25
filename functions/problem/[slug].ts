@@ -45,7 +45,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const reqHostname = new URL(request.url).hostname;
   const isDev = reqHostname === "localhost" || reqHostname === "127.0.0.1";
   const jsPath = isDev ? "/src/entry-client-problem.ts" : "/assets/problem-page.js";
-  const cssLink = isDev ? "" : '<link rel="stylesheet" href="/assets/problem-page.css" />';
+  const cssLink = isDev ? "" : '<link rel="stylesheet" href="/assets/shared.css" />\n  <link rel="stylesheet" href="/assets/problem-page.css" />';
   const viteClient = isDev ? `<script type="module" src="/@vite/client"><\/script>
   <script>
     (function(){

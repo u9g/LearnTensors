@@ -50,6 +50,7 @@ export default defineConfig({
         },
         assetFileNames: (asset) => {
           if (asset.names?.includes('problem-page.css')) return 'assets/problem-page.css'
+          if (asset.name?.endsWith('.css') && asset.names?.some((n: string) => n.includes('_plugin-vue_export-helper'))) return 'assets/shared.css'
           return 'assets/[name]-[hash][extname]'
         },
       },
