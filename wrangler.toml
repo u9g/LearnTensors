@@ -2,9 +2,6 @@ name = "learntensors"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "dist"
 
-[assets]
-directory = "./dist"
-
 # After running: npx wrangler d1 create learntensors-db
 # paste the database_id below
 [[d1_databases]]
